@@ -211,7 +211,7 @@ def generate_dataset_singlesize(
                                       dtype=np.int32)
             this_dataset_y[:, index_category-1] = 1
             number_of_image_per_category[index_category-1] = number_of_images
-            if is_first_total:################################################################################
+            if is_first_total:
                 dataset_x = this_dataset_x
                 dataset_y = this_dataset_y
                 is_first_total = False
