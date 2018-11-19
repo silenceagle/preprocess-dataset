@@ -66,7 +66,7 @@ def img_gray(src_basepath: str, dst_basepath, src_category: list, min_Width=11, 
 
 def get_and_save_amplitude_image_slc(source_path, save_path, source_extension='tif'):
     """
-    get the amplitude images of OpenSARShip SLC mode images and save
+    get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
     :param source_path: source images' root ptah
     :param save_path: the path to save processed images
     :param source_extension: source image files' extension, default to 'tif'
@@ -94,6 +94,7 @@ def get_and_save_amplitude_image_slc(source_path, save_path, source_extension='t
                     filename_no_extension, _ = os.path.splitext(
                         img_files.name)
                     cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), img_amplitude)
+                    np.save(os.path.join(save_path, category.name, filename_no_extension+'.npy'), img_amplitude)
     return True
 
 
@@ -655,12 +656,6 @@ if __name__ == '__main__':
     # img_gray(src_basepath, dst_basepath, src_category)
     # img_padding(src_basepath)
     # img_padding(r'F:\dataset_se', src_category=['mship'], out_size=[[128, 128]], ext='tiff')
-
-    # a = np.array([
-    #     [1, 2, 3, 4],
-    #     [5, 6, 7, 8]
-    # ])
-    # b = dataset_padding(a, ori_size=[2, 2], out_size=[[4, 4]])
     # cargo = np.load(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Cargo.npy')
     # tanker = np.load(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Tanker.npy')
     # cargo_128_128 = dataset_padding(cargo[:, :, 0], [28, 28])
@@ -678,9 +673,9 @@ if __name__ == '__main__':
     # npy_file_name = 'ship_88_88_DOTA.npy'
     # gen_npy_file(source_path, save_path, npy_file_name)
     # a = np.load(r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_88_88_DOTA.npy')
-    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC'
-    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude'
-    # get_and_save_amplitude_image_SLC(source_path, save_path)
+    source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC'
+    save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude'
+    get_and_save_amplitude_image_slc(source_path, save_path)
     # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude'
     # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_crop'
     # crop_imgs_and_save_smaller(source_path, save_path, 88, 88)
