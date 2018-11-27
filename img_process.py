@@ -477,6 +477,9 @@ def sample_img_with_slide_windows(img, sample_width, sample_height, save_path=No
                         cv2.imwrite(os.path.join(save_path, img_name+'_'+str(int(ind_row*sample_per_row+ind_col+1))
                                                  + '.png'),
                                     img[ind_row:ind_row + sample_height, ind_col:ind_col + sample_width])
+                        np.save(os.path.join(save_path, img_name+'_'+str(int(ind_row*sample_per_row+ind_col+1))
+                                                 + '.npy'),
+                                    img[ind_row:ind_row + sample_height, ind_col:ind_col + sample_width])
                     if isfirst:
                         expand_img_data = np.reshape(
                             img[ind_row:ind_row + sample_height,
@@ -519,7 +522,10 @@ def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width
                     if extension == source_extension:
                         is_save_npy = True
                         pbar.set_description("Processing %s" % img_files.name)
-                        img_data = cv2.imread(img_files.path, -1)
+                        if extension == 'npy':
+                            img_data = np.load(img_files.path)
+                        else:
+                            img_data = cv2.imread(img_files.path, -1)
                         if is_first:
                             total_dataset = sample_img_with_slide_windows(
                                 img_data, slide_width, slide_height,
@@ -580,14 +586,16 @@ def resize_img_and_save_to_folder_opensarship_slc(
     return True
 
 
-def resize_img_and_save_to_folder_with_gray_rgb(
-    source_path, save_path, source_extension='png', new_size=[88, 88]):
+def resize_img_and_save_to_folder(
+    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False):
     """
     resize images to fixed size and save them
     the source path's struct : root/image files
+    and save npy files contain float values
     :param source_path: source images' root ptah
     :param save_path: the path to save resized images
     :param source_extension: source image files' extension, default to 'png'
+    :param is_do_gray: if to do gray on RGB image, default to False
     :return: True
     """
     if not os.path.exists(source_path):
@@ -598,22 +606,32 @@ def resize_img_and_save_to_folder_with_gray_rgb(
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == source_extension:
                 pbar.set_description("Processing %s" % img_files.name)
-                source_img = cv2.imread(img_files.path, -1)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
                 if source_img.shape[0] < 20 or source_img.shape[1] < 20:
                     continue
-                # 3 channels :RGB
-                # gray = 0.39 * R + 0.5 * G + 0.11 * B
-                img_amplitude = 0.39 * source_img[:, :, 0] + \
-                                       0.5 * source_img[:, :, 1] + \
-                                       0.11 * source_img[:, :, 2]
-                image = misc.toimage(img_amplitude)
-                im_resize = misc.imresize(image, (new_size[0], new_size[
-                    1]))
-                filename_no_extension, extension = os.path.splitext(
-                    img_files.name)
+                if len(source_img.shape) == 3:
+                    # 3 channels :RGB
+                    if is_do_gray:
+                        # gray = 0.39 * R + 0.5 * G + 0.11 * B
+                        img_gray = 0.39 * source_img[:, :, 0] + 0.5 * source_img[:, :, 1] + 0.11 * source_img[:, :, 2]
+                        image = misc.toimage(img_gray)
+                        im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                    else:
+                        image = misc.toimage(source_img)
+                        im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                elif len(source_img.shape) == 2:
+                    # image = misc.toimage(source_img)
+                    # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                    im_resize = cv2.resize(source_img, (new_size[1], new_size[0]))
+                filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.makedirs(save_path, exist_ok=True)
                 os.chdir(save_path)
-                misc.imsave(filename_no_extension+'.png', im_resize)
+                # misc.imsave(filename_no_extension+'.png', im_resize)
+                cv2.imwrite(filename_no_extension + '.png', im_resize)
+                np.save(filename_no_extension + '.npy', im_resize)
     return True
 
 
@@ -622,6 +640,7 @@ def resize_img_and_save_to_folder_with_category(
     """
     resize images to fixed size and save them
     the source path's struct : root/category/image files
+    also save the npy files contain float value
     :param source_path: source images' root ptah
     :param save_path: the path to save resized images
     :param source_extension: source image files' extension, default to 'png'
@@ -637,64 +656,25 @@ def resize_img_and_save_to_folder_with_category(
                     extension = os.path.splitext(img_files.path)[1][1:]
                     if extension == source_extension:
                         pbar.set_description("Processing %s" % img_files.name)
-                        source_img = cv2.imread(img_files.path, -1)
-                        image = misc.toimage(source_img)
-                        im_resize = misc.imresize(image, (new_size[0], new_size[
-                            1]))
+                        if extension == 'npy':
+                            source_img = np.load(img_files.path)
+                        else:
+                            source_img = cv2.imread(img_files.path, -1)
+                        # image = misc.toimage(source_img, mode='F')
+                        # im_resize = misc.imresize(image, (new_size[0], new_size[
+                        #     1]))
+                        im_resize = cv2.resize(source_img, (new_size[1], new_size[0]))
                         filename_no_extension, extension = os.path.splitext(
                             img_files.name)
                         os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
                         os.chdir(os.path.join(save_path, category.name))
-                        misc.imsave(filename_no_extension+'.png', im_resize)
+                        # misc.imsave(filename_no_extension+'.png', im_resize)
+                        cv2.imwrite(filename_no_extension+'.png', im_resize)
+                        np.save(filename_no_extension+'.npy', im_resize)
     return True
 
 
 if __name__ == '__main__':
-    # src_basepath = r'F:\dataset_se\DOTA_wuhanU\DOTA1.0_wuhanU\train\out_dataset'
-    # src_basepath = r'F:\dataset_se\DOTA_wuhanU\DOTA1.0_wuhanU\val\out_dataset\out_dataset\gray'
-    # src_category, dst_basepath = gen_destfolder(src_basepath)
-    # img_gray(src_basepath, dst_basepath, src_category)
-    # img_padding(src_basepath)
-    # img_padding(r'F:\dataset_se', src_category=['mship'], out_size=[[128, 128]], ext='tiff')
-    # cargo = np.load(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Cargo.npy')
-    # tanker = np.load(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Tanker.npy')
-    # cargo_128_128 = dataset_padding(cargo[:, :, 0], [28, 28])
-    # tanker_128_128 = dataset_padding(tanker[:, :, 0], [28, 28])
-    # np.save(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Cargo_128_128.npy', cargo_128_128)
-    # np.save(r'I:\dataset_se\OpenSARShip\noexpand\GRDH_Tanker_128_128.npy', tanker_128_128)
-    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC'
-    # save_path = r'/media/se/document/dataset_se/OpenSARShip/88_88_3class'
-    # resize_img_and_save_to_folder_OpenSARShip_SLC(source_path, save_path)
-    # source_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship'
-    # save_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_88_88'
-    # resize_img_and_save_to_folder(source_path, save_path)
-    # source_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_88_88'
-    # save_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset'
-    # npy_file_name = 'ship_88_88_DOTA.npy'
-    # gen_npy_file(source_path, save_path, npy_file_name)
-    # a = np.load(r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_88_88_DOTA.npy')
-    source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC'
-    save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude'
-    get_and_save_amplitude_image_slc(source_path, save_path)
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_crop'
-    # crop_imgs_and_save_smaller(source_path, save_path, 88, 88)
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
-    # padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height=94, padding_width=90, source_extension='png')
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
-    # sample_with_slide_window_and_save_npy(source_path, slide_height=88, slide_width=88)
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp2'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
-    # padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height=88, padding_width=88)
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_resize_h94w90'
-    # resize_img_and_save_to_folder_with_category(source_path, save_path, source_extension='png', new_size=[94, 90])
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp2'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_resize_h94w90'
-    # resize_img_and_save_to_folder_with_category(source_path, save_path, source_extension='png', new_size=[88, 88])
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_resize_h94w90'
-    # sample_with_slide_window_and_save_npy(source_path, slide_height=88, slide_width=88)
     pass
 
 
