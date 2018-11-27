@@ -198,7 +198,10 @@ def generate_dataset_singlesize(
                 extension = os.path.splitext(img_file.path)[1][1:]
                 if extension == file_extension:
                     number_of_images += 1
-                    temp_img = cv2.imread(img_file.path, -1)
+                    if extension == 'npy':
+                        temp_img = np.load(img_file.path)
+                    else:
+                        temp_img = cv2.imread(img_file.path, -1)
                     if is_first:
                         this_dataset_x = np.reshape(temp_img, [1, -1])
                         is_first = False
@@ -392,7 +395,7 @@ def random_choose_fix_number_image_files(source_path, save_path, pick_file_numbe
 def data_norm_zscore(src_data):
     """
         normalization function : norm = (true - mean) / std
-        only can be used to 2D matrix
+        only can be used to 2D matrix, each row represents a data point, such as an image
     """
     if not len(src_data.shape) == 2:
         raise ValueError("normalization only support 2D data, but get %d data" % len(src_data.shape))
@@ -409,7 +412,7 @@ def data_norm_zscore(src_data):
 def data_norm_minmax(src_data):
     """
         normalization function : norm = (true - min) / (max - min)
-        only can be used to 2D matrix
+        only can be used to 2D matrix, each row represents a data point, such as an image
     """
     if not len(src_data.shape) == 2:
         raise ValueError("normalization only support 2D data, but get %d data" % len(src_data.shape))
@@ -424,41 +427,6 @@ def data_norm_minmax(src_data):
 
 
 if __name__ == '__main__':
-    # source_path = r'/media/se/document/dataset_se/OpenSARShip/88_88_3class'
-    # save_path = r'/media/se/document/dataset_se/OpenSARShip/88_88_train_test_7_3_3class'
-    # train_file_proportion = 0.7
-    # split_dataset_to_train_test(source_path, save_path, train_file_proportion)
-    # source_path = r'/media/se/document/dataset_se/OpenSARShip/88_88_train_test_7_3_3class/train'
-    # save_path = r'/media/se/document/dataset_se/OpenSARShip/88_88_train_test_7_3_3class'
-    # npz_file_name = 'OpenSARShip_train_validation_88_88_3class.npz'
-    # train_x, train_y, validation_x, validation_y = \
-    #     generate_train_validation_dataset_singlesize(source_path, save_path,
-    #                                                  npz_file_name, 0.2)
-    # train_num = np.sum(train_y, axis=0)
-    # validation_num = np.sum(validation_y, axis=0)
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90\h88w88'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\padding_slide_sample'
-    # split_dataset_to_train_test(source_path, save_path, train_file_proportion=0.7)
-    source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/train'
-    save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/train_picked'
-    random_choose_fix_number_image_files(source_path, save_path, pick_file_number=50)
-    source_path = save_path
-    save_path = source_path
-    npz_file_name = 'opensarship_resize_slide_sample_expand_6classes_train.npz'
-    generate_dataset_singlesize(source_path, save_path, npz_file_name, file_extension='png')
-    train_dataset = np.load(os.path.join(save_path, npz_file_name))
-    train_x = train_dataset['x']
-    train_y = train_dataset['y']
-    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\padding_slide_sample\test'
-    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\padding_slide_sample' \
-    #             r'\test_picked'
-    # random_choose_fix_number_image_files(source_path, save_path, pick_file_number=80)
-    # source_path = save_path
-    # save_path = source_path
-    # npz_file_name = 'opensarship_padding_slide_sample_expand_6classes_test.npz'
-    # generate_dataset_singlesize(source_path, save_path, npz_file_name, file_extension='png')
-    # test_dataset = np.load(os.path.join(save_path, npz_file_name))
-    # test_x = test_dataset['x']
-    # test_y = test_dataset['y']
+    
     pass
 
