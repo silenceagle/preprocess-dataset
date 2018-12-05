@@ -426,7 +426,29 @@ def data_norm_minmax(src_data):
     return norm_data
 
 
+def copy_npy_files(source_path, save_path):
+    """
+    copy npy files from source path to save path
+    :param source_path: struct: source_path/category/npy files
+    :param save_path: save path
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    for category in os.scandir(source_path):
+        if category.is_dir():
+            pbar = tqdm(os.scandir(category.path))
+            for npy_files in pbar:
+                if npy_files.is_file():
+                    extension = os.path.splitext(npy_files.path)[1][1:]
+                    if extension == 'npy':
+                        pbar.set_description("Processing %s" % npy_files.name)
+                        os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
+                        shutil.copyfile(npy_files.path,
+                                        os.path.join(save_path, category.name, npy_files.name))
+    return True
+
+
 if __name__ == '__main__':
-    
     pass
 
