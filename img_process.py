@@ -64,6 +64,41 @@ def img_gray(src_basepath: str, dst_basepath, src_category: list, min_Width=11, 
     return
 
 
+def img_gray_category(source_path: str, save_path, extension=['png']):
+    """
+        do graying to RGB image and save
+        :param source_path: folder's path that stores original RGB images files, struction source_path/images
+        :param save_path: gray images save path
+        :param extension: the extension of the images to be grayed
+        :return True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    os.makedirs(save_path, exist_ok=True)
+    pbar = tqdm(os.scandir(source_path))
+    for img_file in pbar:
+        if img_file.is_file():
+            extension = os.path.splitext(img_file.path)[1][1:]
+            if extension in extension:
+                pbar.set_description("Processing %s" % img_file.name)
+                # gray img
+                tmp_img = cv2.imread(img_file.path, -1)
+                # print(entry.path)
+                img_h, img_w, img_c = tmp_img.shape
+                if img_c == 3:
+                    tmp_gray_img = np.zeros([img_h, img_w])
+                    for ind_h in range(img_h):
+                        for ind_w in range(img_w):
+                            tmp_gray_img[ind_h][ind_w] = np.int(0.39 * tmp_img[ind_h][ind_w][0] +
+                                                                0.5 * tmp_img[ind_h][ind_w][1] +
+                                                                0.11 * tmp_img[ind_h][ind_w][2])
+                            # gray = 0.39 * R + 0.5 * G + 0.11 * B
+                    # save gray img
+                    # print("\tsaving gray img: %s ..." % entry.name)
+                    cv2.imwrite(os.path.join(save_path, img_file.name), tmp_gray_img)
+    return True
+
+
 def get_and_save_amplitude_image_slc(source_path, save_path, source_extension='tif'):
     """
     get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
@@ -117,7 +152,10 @@ def gen_npy_file(source_path, save_path, npy_file_name, img_extension='png'):
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == img_extension:
                 pbar.set_description("Processing %s" % img_files.name)
-                source_img = cv2.imread(img_files.path, -1)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
                 if is_first:
                     total_data = np.reshape(source_img, [1, -1])
                     is_first = False
@@ -498,10 +536,10 @@ def sample_img_with_slide_windows(img, sample_width, sample_height, save_path=No
         return expand_img_data
 
 
-def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width, source_extension='png'):
+def sample_with_slide_window_and_save_npy_with_category(source_path, slide_height, slide_width, source_extension='png'):
     """
     sample with slide window on images to get fix sized images, and save as .npy files
-    :param source_path: source images' path
+    :param source_path: source images' path, source path/category/files
     :param slide_height: slide window's height
     :param slide_width: slide window's width
     :param source_extension: source images' file extension
@@ -544,10 +582,50 @@ def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width
     return True
 
 
+def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width, npy_save_name, source_extension='png'):
+    """
+    sample with slide window on images to get fix sized images, and save as .npy files
+    :param source_path: source images' path, source path/files
+    :param slide_height: slide window's height
+    :param slide_width: slide window's width
+    :param npy_save_name: the npy file's save name
+    :param source_extension: source images' file extension
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    is_first = True
+    for img_files in pbar:
+        if img_files.is_file():
+            extension = os.path.splitext(img_files.path)[1][1:]
+            filename_no_extension, _ = os.path.splitext(img_files.name)
+            if extension == source_extension:
+                pbar.set_description("Processing %s" % img_files.name)
+                if extension == 'npy':
+                    img_data = np.load(img_files.path)
+                else:
+                    img_data = cv2.imread(img_files.path, -1)
+                if is_first:
+                    total_dataset = sample_img_with_slide_windows(
+                        img_data, slide_width, slide_height,
+                        save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
+                        img_name=filename_no_extension)
+                    is_first = False
+                else:
+                    total_dataset = np.append(total_dataset, sample_img_with_slide_windows(
+                        img_data, slide_width, slide_height,
+                        save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
+                        img_name=filename_no_extension), axis=0)
+    if npy_save_name is not None:
+        np.save(os.path.join(source_path, npy_save_name), total_dataset)
+    return True
+
+
 # resize
 
 
-def resize_img_and_save_to_folder_opensarship_slc(
+def resize_img_and_save_to_folder_opensarship_slc_with_category(
     source_path, save_path, source_extension='tif', new_size=[88, 88]):
     """
     resize SLC mode OpenSARShip images to fixed size and save them
@@ -587,7 +665,7 @@ def resize_img_and_save_to_folder_opensarship_slc(
 
 
 def resize_img_and_save_to_folder(
-    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False):
+    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False, img_smallest=20):
     """
     resize images to fixed size and save them
     the source path's struct : root/image files
@@ -596,6 +674,7 @@ def resize_img_and_save_to_folder(
     :param save_path: the path to save resized images
     :param source_extension: source image files' extension, default to 'png'
     :param is_do_gray: if to do gray on RGB image, default to False
+    :param img_smallest: the image's smallest size
     :return: True
     """
     if not os.path.exists(source_path):
@@ -610,22 +689,24 @@ def resize_img_and_save_to_folder(
                     source_img = np.load(img_files.path)
                 else:
                     source_img = cv2.imread(img_files.path, -1)
-                if source_img.shape[0] < 20 or source_img.shape[1] < 20:
+                if source_img.shape[0] < img_smallest or source_img.shape[1] < img_smallest:
                     continue
                 if len(source_img.shape) == 3:
                     # 3 channels :RGB
                     if is_do_gray:
                         # gray = 0.39 * R + 0.5 * G + 0.11 * B
                         img_gray = 0.39 * source_img[:, :, 0] + 0.5 * source_img[:, :, 1] + 0.11 * source_img[:, :, 2]
-                        image = misc.toimage(img_gray)
-                        im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                        # image = misc.toimage(img_gray)
+                        # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                        im_resize = cv2.resize(img_gray, (new_size[1], new_size[0]))
                     else:
-                        image = misc.toimage(source_img)
-                        im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                        # image = misc.toimage(source_img)
+                        # im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                        im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
                 elif len(source_img.shape) == 2:
                     # image = misc.toimage(source_img)
                     # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
-                    im_resize = cv2.resize(source_img, (new_size[1], new_size[0]))
+                    im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
                 filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.makedirs(save_path, exist_ok=True)
                 os.chdir(save_path)
@@ -672,6 +753,121 @@ def resize_img_and_save_to_folder_with_category(
                         cv2.imwrite(filename_no_extension+'.png', im_resize)
                         np.save(filename_no_extension+'.npy', im_resize)
     return True
+
+
+# rotate
+
+
+def __rotate_img_90_degree(img):
+    """
+    rotate image 90 degree clockwise
+    :param img: image data
+    :return: rotated image data
+    """
+    img_width = None
+    if len(img.shape) == 3:
+        img_height, img_width, img_channels = img.shape
+        rotated_img = np.zeros([img_width, img_height, img_channels])
+    elif len(img.shape) == 2:
+        img_height, img_width = img.shape
+        rotated_img = np.zeros([img_width, img_height])
+    if img_width is None:
+        raise ValueError('''input image's shape is not valid !''')
+    for ind_row in range(img_height):
+        rotated_img[:, img_height - ind_row - 1] = img[ind_row]
+    return rotated_img
+
+
+def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extension='png'):
+    """
+    rotate image 90 degree clockwise and save to folder
+    :param source_path: source_path/image files
+    :param save_path: save_path/rotated image files
+    :param source_extension: image files' extension, default to 'png'
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    for img_files in pbar:
+        if img_files.is_file():
+            extension = os.path.splitext(img_files.path)[1][1:]
+            if extension == source_extension:
+                pbar.set_description("Processing %s" % img_files.name)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
+                rotated_img = __rotate_img_90_degree(source_img)
+                filename_no_extension, extension = os.path.splitext(img_files.name)
+                os.makedirs(save_path, exist_ok=True)
+                os.chdir(save_path)
+                cv2.imwrite(filename_no_extension + '_rotate90c.png', rotated_img)
+                np.save(filename_no_extension + '_rotate90c.npy', rotated_img)
+    return True
+
+
+def rotate_img_180degree_and_save_to_folder(source_path, save_path, source_extension='png'):
+    """
+    rotate image 180 degree clockwise and save to folder
+    :param source_path: source_path/image files
+    :param save_path: save_path/rotated image files
+    :param source_extension: image files' extension, default to 'png'
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    for img_files in pbar:
+        if img_files.is_file():
+            extension = os.path.splitext(img_files.path)[1][1:]
+            if extension == source_extension:
+                pbar.set_description("Processing %s" % img_files.name)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
+                rotated_img = __rotate_img_90_degree(source_img)
+                rotated_img = __rotate_img_90_degree(rotated_img)
+                filename_no_extension, extension = os.path.splitext(img_files.name)
+                os.makedirs(save_path, exist_ok=True)
+                os.chdir(save_path)
+                cv2.imwrite(filename_no_extension + '_rotate180c.png', rotated_img)
+                np.save(filename_no_extension + '_rotate180c.npy', rotated_img)
+    return True
+
+
+def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_extension='png'):
+    """
+    rotate image 270 degree clockwise and save to folder
+    :param source_path: source_path/image files
+    :param save_path: save_path/rotated image files
+    :param source_extension: image files' extension, default to 'png'
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    for img_files in pbar:
+        if img_files.is_file():
+            extension = os.path.splitext(img_files.path)[1][1:]
+            if extension == source_extension:
+                pbar.set_description("Processing %s" % img_files.name)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
+                rotated_img = __rotate_img_90_degree(source_img)
+                rotated_img = __rotate_img_90_degree(rotated_img)
+                rotated_img = __rotate_img_90_degree(rotated_img)
+                filename_no_extension, extension = os.path.splitext(img_files.name)
+                os.makedirs(save_path, exist_ok=True)
+                os.chdir(save_path)
+                cv2.imwrite(filename_no_extension + '_rotate270c.png', rotated_img)
+                np.save(filename_no_extension + '_rotate270c.npy', rotated_img)
+    return True
+
+
 
 
 if __name__ == '__main__':
