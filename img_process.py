@@ -21,10 +21,10 @@ def gen_destfolder(src_basepath: str, dst_basepath=' '):
     return src_category, dst_basepath
 
 
-def img_gray(src_basepath: str, dst_basepath, src_category: list, min_Width=11, min_Heigh=11, ext=['png']):
+def img_gray_with_category(src_basepath: str, dst_basepath, src_category: list, min_Width=11, min_Heigh=11, ext=['png']):
     """
         do graying to RGB image and save
-        :param src_basepath: folder's path that stores original RGB images files
+        :param src_basepath: source_path/category/image files
         :param src_category: the names of imgs' categories, which are also the sub folders' name of src_basepath
         :param dst_basepath: gray imgs' storaged path
         :param min_Heigh: the minimal images' height that will be grayed
@@ -64,7 +64,7 @@ def img_gray(src_basepath: str, dst_basepath, src_category: list, min_Width=11, 
     return
 
 
-def img_gray_category(source_path: str, save_path, extension=['png']):
+def img_gray(source_path: str, save_path, extension=['png']):
     """
         do graying to RGB image and save
         :param source_path: folder's path that stores original RGB images files, struction source_path/images
@@ -99,10 +99,10 @@ def img_gray_category(source_path: str, save_path, extension=['png']):
     return True
 
 
-def get_and_save_amplitude_image_slc(source_path, save_path, source_extension='tif'):
+def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
     """
     get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
-    :param source_path: source images' root ptah
+    :param source_path: source images' root ptah, source_path/category/image files
     :param save_path: the path to save processed images
     :param source_extension: source image files' extension, default to 'tif'
     :return: True
@@ -136,7 +136,7 @@ def get_and_save_amplitude_image_slc(source_path, save_path, source_extension='t
 def gen_npy_file(source_path, save_path, npy_file_name, img_extension='png'):
     """
     concat images data with only one channel in soruce path and generate npy file
-    :param source_path: images folder
+    :param source_path: source_path/image files
     :param save_path: npy file's save path
     :param npy_file_name:
     :param img_extension: source images' file extension
@@ -168,8 +168,7 @@ def gen_npy_file(source_path, save_path, npy_file_name, img_extension='png'):
 
 # crop
 
-def img_crop_from_center(
-        original_img, crop_width, crop_height):
+def __img_crop_from_center(original_img, crop_width, crop_height):
     """
         split a image with fixed size centrally
         :param original_img: the original img data matrix
@@ -226,7 +225,7 @@ def crop_imgs_and_save_smaller(source_path, save_path, crop_height: int, crop_wi
                     img_width = img_data.shape[1]
                     filename_no_extension, _ = os.path.splitext(img_files.name)
                     if img_height >= crop_height and img_width >= crop_width:
-                        crop_img_data = img_crop_from_center(img_data, crop_width, crop_height)
+                        crop_img_data = __img_crop_from_center(img_data, crop_width, crop_height)
                         cv2.imwrite(os.path.join(save_path, 'h'+str(crop_height)+'w'+str(crop_width), category.name,
                                                  filename_no_extension+'.png'), crop_img_data)
                     else:
@@ -239,83 +238,83 @@ def crop_imgs_and_save_smaller(source_path, save_path, crop_height: int, crop_wi
 # padding
 
 
-def img_padding(src_basepath: str,  src_category=None, dst_basepath=None, out_size=[[64, 64],[128, 128]], ext=['png'],
-                is_save_img = False):
-    """
-        padding zero to src imgs to get fix sized imgs, and save as npy files
-        :param src_basepath: folder's path that stores original images files
-        :param src_category: the names of imgs' categories, which are also the sub folders' name of src_basepath
-        :param dst_basepath: processed imgs' storaged path, default to src_basepath/out_dataset
-        :param out_size: every row represent one of the images' out size :[height, width],
-                         and the row's index bigger, the size bigger.
-        :param ext: the extension of the images to be processed
-        :param is_save_img: whether to save processed images, default to False
-        :return
-    """
-    # if source images' stored folder not exist, raise error
-    if not os.path.exists(src_basepath):
-        raise FileExistsError('path not found! : %s' % src_basepath)
-    # if the source images' category information is not provided, then generate it.
-    if src_category is None:
-        src_category = []
-        for entry in os.scandir(src_basepath):
-            if entry.is_dir() and entry.name != 'out_dataset':
-                src_category.append(entry.name)
-    # if the after-processed images' stored folder is not provided, then set it to src_basepath\out_dataset
-    if dst_basepath is None:
-        dst_basepath = os.path.join(src_basepath, 'out_dataset')
-    # generate folder to save images with size of outsize1 or outsize2
-    num_outsize = np.array(out_size).shape[0]
-    path_size = []
-    for ind_size in range(num_outsize):
-        path_size.append(os.path.join(dst_basepath, ('%d_%d' % (out_size[ind_size][0], out_size[ind_size][1]))))
-        os.makedirs(path_size[ind_size], exist_ok=True)  # if exist, don't raise exception
-    # do padding
-    for this_cate in src_category:
-        this_cate_srcpath = os.path.join(src_basepath, this_cate)
-        pbar = tqdm(os.scandir(this_cate_srcpath))
-        for entry in pbar:
-            pbar.set_description("Processing %s" % entry.name)
-            if entry.is_file():
-                # get the file's extension
-                extension = os.path.splitext(entry.path)[1][1:]
-                if extension in ext:
-                    # print('find image : %s' % entry.path)
-                    # if extension == 'tiff':
-                    #     tif = TIFF.open(entry.path, mode='r')
-                    #     tmp_img = tif.read_image()
-                    #     tif.close
-                    # else:
-                    #     tmp_img = cv2.imread(entry.path, cv2.IMREAD_GRAYSCALE)
-                    tmp_img = cv2.imread(entry.path, -1)  # <0 returns the image as is
-                    # print(tmp_img[85][108])
-                    # print("image's shape:")
-                    # print(tmp_img.shape)
-                    # print(len(tmp_img.shape))
-                    # img_h, img_w = tmp_img.shape
-                    # this_size = 0
-                    # for ind_size in range(num_outsize):
-                    #     if img_h <= out_size[ind_size][0] and img_w <= out_size[ind_size][1]:
-                    #         break
-                    #     this_size += 1
-                    # # print('out image size index : %d' % this_size)
-                    # if this_size < num_outsize:  # image with valid size
-                    #     # print('gray image')
-                    #     save_img = np.zeros([out_size[this_size][0], out_size[this_size][1]], dtype=np.uint16)
-                    #     start_r = int(np.floor((out_size[this_size][0]-img_h)/2.0))
-                    #     start_c = int(np.floor((out_size[this_size][1]-img_w)/2.0))
-                    #     for ind_r in range(img_h):
-                    #         for ind_c in range(img_w):
-                    #             save_img[start_r+ind_r, start_c+ind_c] = tmp_img[ind_r, ind_c]
-                    is_valid, save_img, this_size= matrix_padding(tmp_img, out_size=out_size, dtype=np.uint16)
-                    if is_valid:
-                        if is_save_img:
-                            os.makedirs(os.path.join(path_size[this_size], this_cate), exist_ok=True)
-                            cv2.imwrite(os.path.join(path_size[this_size], this_cate, entry.name), save_img)
-    return
+# def img_padding_with_category(src_basepath: str,  src_category=None, dst_basepath=None, out_size=[[64, 64],[128, 128]],
+#                               ext=['png'], is_save_img = False):
+#     """
+#         padding zero to src imgs to get fix sized imgs, and save as npy files
+#         :param src_basepath: folder's path that stores original images files, src_basepath/category/image files
+#         :param src_category: the names of imgs' categories, which are also the sub folders' name of src_basepath
+#         :param dst_basepath: processed imgs' storaged path, default to src_basepath/out_dataset
+#         :param out_size: every row represent one of the images' out size :[height, width],
+#                          and the row's index bigger, the size bigger.
+#         :param ext: the extension of the images to be processed
+#         :param is_save_img: whether to save processed images, default to False
+#         :return
+#     """
+#     # if source images' stored folder not exist, raise error
+#     if not os.path.exists(src_basepath):
+#         raise FileExistsError('path not found! : %s' % src_basepath)
+#     # if the source images' category information is not provided, then generate it.
+#     if src_category is None:
+#         src_category = []
+#         for entry in os.scandir(src_basepath):
+#             if entry.is_dir() and entry.name != 'out_dataset':
+#                 src_category.append(entry.name)
+#     # if the after-processed images' stored folder is not provided, then set it to src_basepath\out_dataset
+#     if dst_basepath is None:
+#         dst_basepath = os.path.join(src_basepath, 'out_dataset')
+#     # generate folder to save images with size of outsize1 or outsize2
+#     num_outsize = np.array(out_size).shape[0]
+#     path_size = []
+#     for ind_size in range(num_outsize):
+#         path_size.append(os.path.join(dst_basepath, ('%d_%d' % (out_size[ind_size][0], out_size[ind_size][1]))))
+#         os.makedirs(path_size[ind_size], exist_ok=True)  # if exist, don't raise exception
+#     # do padding
+#     for this_cate in src_category:
+#         this_cate_srcpath = os.path.join(src_basepath, this_cate)
+#         pbar = tqdm(os.scandir(this_cate_srcpath))
+#         for entry in pbar:
+#             pbar.set_description("Processing %s" % entry.name)
+#             if entry.is_file():
+#                 # get the file's extension
+#                 extension = os.path.splitext(entry.path)[1][1:]
+#                 if extension in ext:
+#                     # print('find image : %s' % entry.path)
+#                     # if extension == 'tiff':
+#                     #     tif = TIFF.open(entry.path, mode='r')
+#                     #     tmp_img = tif.read_image()
+#                     #     tif.close
+#                     # else:
+#                     #     tmp_img = cv2.imread(entry.path, cv2.IMREAD_GRAYSCALE)
+#                     tmp_img = cv2.imread(entry.path, -1)  # <0 returns the image as is
+#                     # print(tmp_img[85][108])
+#                     # print("image's shape:")
+#                     # print(tmp_img.shape)
+#                     # print(len(tmp_img.shape))
+#                     # img_h, img_w = tmp_img.shape
+#                     # this_size = 0
+#                     # for ind_size in range(num_outsize):
+#                     #     if img_h <= out_size[ind_size][0] and img_w <= out_size[ind_size][1]:
+#                     #         break
+#                     #     this_size += 1
+#                     # # print('out image size index : %d' % this_size)
+#                     # if this_size < num_outsize:  # image with valid size
+#                     #     # print('gray image')
+#                     #     save_img = np.zeros([out_size[this_size][0], out_size[this_size][1]], dtype=np.uint16)
+#                     #     start_r = int(np.floor((out_size[this_size][0]-img_h)/2.0))
+#                     #     start_c = int(np.floor((out_size[this_size][1]-img_w)/2.0))
+#                     #     for ind_r in range(img_h):
+#                     #         for ind_c in range(img_w):
+#                     #             save_img[start_r+ind_r, start_c+ind_c] = tmp_img[ind_r, ind_c]
+#                     is_valid, save_img, this_size = __matrix_padding(tmp_img, out_size=out_size, dtype=np.uint16)
+#                     if is_valid:
+#                         if is_save_img:
+#                             os.makedirs(os.path.join(path_size[this_size], this_cate), exist_ok=True)
+#                             cv2.imwrite(os.path.join(path_size[this_size], this_cate, entry.name), save_img)
+#     return
 
 
-def matrix_padding_multi_size_soft(src_mat, out_size=[[64, 64], [128, 128]], dtype=np.float32):
+def __matrix_padding_multi_size_soft(src_mat, out_size=[[64, 64], [128, 128]], dtype=np.float32):
     """
         padding zero to src matrix to get larger size matrix
         if and only if source image's width and height are both small than out's, do padding
@@ -350,7 +349,7 @@ def matrix_padding_multi_size_soft(src_mat, out_size=[[64, 64], [128, 128]], dty
         return is_valid, 0, 0
 
 
-def matrix_padding_force_to_get_fix_sized_matrix(src_mat, padding_height, padding_width):
+def __matrix_padding_force_to_get_fix_sized_matrix(src_mat, padding_height, padding_width):
     """
     force padding zero to original matrix
         ori width <= padding width and ori height <= padding height: padding around
@@ -407,7 +406,7 @@ def matrix_padding_force_to_get_fix_sized_matrix(src_mat, padding_height, paddin
     return padding_mat
 
 
-def dataset_padding(src_mat, ori_size, out_size=[[128, 128]], dtype=np.float32):
+def __dataset_padding(src_mat, ori_size, out_size=[[128, 128]], dtype=np.float32):
     """
             padding zero to src matrix to get larger size matrix
             :param src_mat: source matrix, every line represent a matrix which has been reshaped to a
@@ -422,13 +421,14 @@ def dataset_padding(src_mat, ori_size, out_size=[[128, 128]], dtype=np.float32):
         raise ValueError('input must be 2D matrix!')
     out_mat = np.zeros((src_mat.shape[0], out_size[0][0]*out_size[0][1]), dtype=dtype)
     for ind_mat in range(src_mat.shape[0]):
-        _, tmp_mat, _ = matrix_padding_multi_size_soft(np.reshape(src_mat[ind_mat], (ori_size[0], ori_size[1])),
+        _, tmp_mat, _ = __matrix_padding_multi_size_soft(np.reshape(src_mat[ind_mat], (ori_size[0], ori_size[1])),
                                     out_size=out_size, dtype=dtype)
         out_mat[ind_mat] = np.reshape(tmp_mat, out_size[0][0]*out_size[0][1])
     return out_mat
 
 
-def padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height, padding_width, source_extension='png'):
+def padding_to_fix_sized_and_save_imgs_with_category(source_path, save_path, padding_height, padding_width,
+                                                     source_extension='png'):
     """
     padding zeros to images data to get fix sized images and save them. But if the source images's size is larger than
     the required size, do croping on them
@@ -451,7 +451,7 @@ def padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height, p
                     pbar.set_description("Processing %s" % img_files.name)
                     img_data = cv2.imread(img_files.path, -1)
                     filename_no_extension, _ = os.path.splitext(img_files.name)
-                    padding_img = matrix_padding_force_to_get_fix_sized_matrix(img_data, padding_height, padding_width)
+                    padding_img = __matrix_padding_force_to_get_fix_sized_matrix(img_data, padding_height, padding_width)
                     cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), padding_img)
     return True
 
@@ -459,7 +459,7 @@ def padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height, p
 # slide sample
 
 
-def sample_img_with_slide_windows(img, sample_width, sample_height, save_path=None, img_name=None):
+def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=None, img_name=None):
     """
         sample a image with fixed size slide windows to get several fixed
         sized small images
@@ -565,14 +565,14 @@ def sample_with_slide_window_and_save_npy_with_category(source_path, slide_heigh
                         else:
                             img_data = cv2.imread(img_files.path, -1)
                         if is_first:
-                            total_dataset = sample_img_with_slide_windows(
+                            total_dataset = __sample_img_with_slide_windows(
                                 img_data, slide_width, slide_height,
                                 save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width),
                                                        category.name),
                                 img_name=filename_no_extension)
                             is_first = False
                         else:
-                            total_dataset = np.append(total_dataset, sample_img_with_slide_windows(
+                            total_dataset = np.append(total_dataset, __sample_img_with_slide_windows(
                                 img_data, slide_width, slide_height,
                                 save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width),
                                                        category.name),
@@ -607,13 +607,13 @@ def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width
                 else:
                     img_data = cv2.imread(img_files.path, -1)
                 if is_first:
-                    total_dataset = sample_img_with_slide_windows(
+                    total_dataset = __sample_img_with_slide_windows(
                         img_data, slide_width, slide_height,
                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
                         img_name=filename_no_extension)
                     is_first = False
                 else:
-                    total_dataset = np.append(total_dataset, sample_img_with_slide_windows(
+                    total_dataset = np.append(total_dataset, __sample_img_with_slide_windows(
                         img_data, slide_width, slide_height,
                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
                         img_name=filename_no_extension), axis=0)
@@ -871,6 +871,6 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
 
 
 if __name__ == '__main__':
-    pass
+	pass
 
 
