@@ -165,7 +165,7 @@ def generate_train_validation_dataset_singlesize(
     return train_x, train_y, validation_x, validation_y
 
 
-def generate_dataset_singlesize(
+def generate_dataset_singlesize_with_category(
         source_path, save_path, npz_file_name, file_extension='png'):
     """
     load single size source images and generate  datasets
@@ -174,7 +174,7 @@ def generate_dataset_singlesize(
     :param source_path: the store path of source images
     :param save_path: the path to save .npz file
     :param file_extension: the image files' extension, default to 'png'
-    :return: dataset_x, dataset_y
+    :return: dataset_x, dataset_y, category_name
     """
     if not os.path.exists(source_path):
         raise FileExistsError('file not found! : %s' % source_path)
@@ -222,7 +222,7 @@ def generate_dataset_singlesize(
                 dataset_x = np.append(dataset_x, this_dataset_x, axis=0)
                 dataset_y = np.append(dataset_y, this_dataset_y, axis=0)
     np.savez(os.path.join(save_path, npz_file_name), x=dataset_x, y=dataset_y)
-    return dataset_x, dataset_y
+    return dataset_x, dataset_y, category_name
 
 
 def generate_train_test_validation_dataset_multisize(
@@ -310,7 +310,7 @@ def generate_train_test_validation_dataset_multisize(
         test_x, test_y, test_x_shape
 
 
-def random_choose_fix_proportion_train_test_files(
+def _random_choose_fix_proportion_train_test_files(
         source_path, train_save_path, test_save_path, train_files_proportion):
     """
     random pick fix proportion of files from source path and copy it to train
@@ -344,7 +344,7 @@ def random_choose_fix_proportion_train_test_files(
     return True
 
 
-def split_dataset_to_train_test(
+def split_dataset_to_train_test_with_category(
         source_path, save_path, train_file_proportion=0.5):
     """
     split the total dataset to two part: train and test
@@ -361,16 +361,15 @@ def split_dataset_to_train_test(
         if sub_folder.is_dir():
             train_save_path = os.path.join(save_path, 'train', sub_folder.name)
             test_save_path = os.path.join(save_path, 'test', sub_folder.name)
-            random_choose_fix_proportion_train_test_files(
+            _random_choose_fix_proportion_train_test_files(
                 sub_folder.path, train_save_path, test_save_path,
                 train_file_proportion)
     return True
 
 
-def random_choose_fix_number_image_files(source_path, save_path, pick_file_number):
+def random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number):
     """
-    random pick fix number of files from source path and copy it to train
-    folder, the rest copy to test folder
+    random pick fix number of files from source path and copy them to save_path/category/images
     :param source_path: the source images' store folder, struct should be source_path/category/image_files
     :param save_path: the folder to store picked image files
     :param pick_file_number: the number of image files to pick
@@ -389,6 +388,26 @@ def random_choose_fix_number_image_files(source_path, save_path, pick_file_numbe
             for file_index in pick_files_indices:
                 shutil.copyfile(os.path.join(source_path, category.name, file_name_list[file_index]),
                                 os.path.join(save_path, category.name, file_name_list[file_index]))
+    return True
+
+
+def random_choose_fix_number_image_files(source_path, save_path, pick_file_number):
+    """
+    random pick fix number of files from source path and copy them to save_path/images
+    :param source_path: the source images' store folder, struct should be source_path/image_files
+    :param save_path: the folder to store picked image files
+    :param pick_file_number: the number of image files to pick
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('file not found! : %s' % source_path)
+    os.makedirs(save_path, exist_ok=True)
+    file_name_list = os.listdir(source_path)
+    total_files_number = len(file_name_list)
+    pick_files_indices = np.random.choice(total_files_number, pick_file_number, replace=False)
+    for file_index in pick_files_indices:
+        shutil.copyfile(os.path.join(source_path, file_name_list[file_index]),
+                        os.path.join(save_path, file_name_list[file_index]))
     return True
 
 
@@ -426,7 +445,7 @@ def data_norm_minmax(src_data):
     return norm_data
 
 
-def copy_npy_files(source_path, save_path):
+def copy_npy_files_with_category(source_path, save_path):
     """
     copy npy files from source path to save path
     :param source_path: struct: source_path/category/npy files
@@ -449,6 +468,180 @@ def copy_npy_files(source_path, save_path):
     return True
 
 
+# multisize
+def random_perm3(data_x, data_y, data_z):
+    """
+        do random perm on x, y and z, x and z are list object, y is ndarray object
+        :param data_x: x data, list object
+        :param data_y: label data, ndarray object
+        :param data_z: x data size, list object
+    """
+    data_size = data_y.shape[0]
+    rand_perm = np.arange(data_size)
+    np.random.shuffle(rand_perm)
+    random_data_x = []
+    random_data_z = []
+    for indices in rand_perm:  # 'List' object, more complicated !!!
+        random_data_x.append(data_x[indices])
+        random_data_z.append(data_z[indices])
+    # random_data_x = data_x[rand_perm]
+    random_data_y = data_y[rand_perm]
+    # random_data_z = data_z[rand_perm]
+    return random_data_x, random_data_y, random_data_z
+
+
+def generate_dataset_multisize_with_cagtegory(source_path):
+    """
+    load multisize source images and generate datasets
+    :param source_path: the store path of source images, source_path/category/image files
+    :return: x, y, x_shape,
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('file not found! : %s' % source_path)
+    number_of_categories = 0
+    for category in os.scandir(source_path):
+        if category.is_dir():
+            number_of_categories += 1
+    number_of_image_per_category = np.zeros(number_of_categories, dtype=np.int32)
+    category_name = []
+    dataset_x = []
+    dataset_x_shape = []
+    index_category = 0
+    for category in os.scandir(source_path):
+        if category.is_dir():
+            index_category += 1
+            number_of_images = 0
+            category_name.append(category.name)
+            for img_file in os.scandir(category.path):
+                extension = os.path.splitext(img_file.path)[1][1:]
+                if extension == 'tif':
+                    number_of_images += 1
+                    tif = TIFF.open(img_file.path, mode='r')
+                    image = tif.read_image()
+                    dataset_x_shape.append([image.shape[0], image.shape[1]])
+                    this_x = np.reshape(np.sqrt(np.power(image[:, :, 0], 2) + np.power(image[:, :, 1], 2)), (1, -1),
+                                        order='C')
+                    this_x_norml2 = (this_x * 1.0) / np.sqrt(np.sum(np.square(this_x)))
+                    dataset_x.append(this_x_norml2)
+            number_of_image_per_category[index_category-1] = number_of_images
+    # print(number_of_image_per_category)
+    dataset_y = np.zeros(
+        [sum(number_of_image_per_category), number_of_categories],
+        dtype=np.int32)
+    for index_category in range(number_of_categories):
+        dataset_y[sum(number_of_image_per_category[0:index_category]):
+                  sum(number_of_image_per_category[0:index_category+1]),
+                  index_category] = 1
+    # print(len(dataset_x))
+    return dataset_x, dataset_y, dataset_x_shape
+
+
+def generate_dataset_multisize(source_path, number_category, this_category_index):
+    """
+    load multisize source images and generate datasets
+    :param source_path: the store path of source images, source_path/image files
+    :param number_category: for generating one hot label y
+    :param this_category_index: for generating one hot label y
+    :return: x, y, x_shape,
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('file not found! : %s' % source_path)
+    dataset_x = []
+    dataset_x_shape = []
+    for img_file in os.scandir(source_path):
+        extension = os.path.splitext(img_file.path)[1][1:]
+        if extension == 'tif':
+            tif = TIFF.open(img_file.path, mode='r')
+            image = tif.read_image()
+            dataset_x_shape.append([image.shape[0], image.shape[1]])
+            this_x = np.reshape(np.sqrt(np.power(image[:, :, 0], 2) + np.power(image[:, :, 1], 2)), (1, -1),
+                                order='C')
+            this_x_norml2 = (this_x * 1.0) / np.sqrt(np.sum(np.square(this_x)))  # norm with L2
+            dataset_x.append(this_x_norml2)
+    # print(number_of_image_per_category)
+    dataset_y = np.zeros([len(dataset_x), number_category], dtype=np.int32)
+    dataset_y[:, this_category_index] = 1
+    # print(len(dataset_x))
+    return dataset_x, dataset_y, dataset_x_shape
+
+
+def random_choose_fix_number_pattern_multise(x, y, shape_matrix, pick_number):
+    """
+    random pick fix number of patterns form x, y and shape_matrix
+    :param x: a list object, per item stores a ndarray, which store a image data
+    :param y: a ndarray object, is the one hot labels
+    :param shape_matrix: a list object, each object is also a list object : [image_height, img_width], respect to x
+    :param pick_number: the number of pattern to pick
+    :return: picked_x, picked_y, picked_shape
+    """
+    total_files_number = len(x)
+    pick_indices = np.random.choice(total_files_number, pick_number, replace=False)
+    picked_x = []
+    picked_shape = []
+    for indices in pick_indices:  # 'List' object, more complicated !!!
+        random_data_x.append(data_x[indices])
+        random_data_z.append(data_z[indices])
+    return True
+
+
 if __name__ == '__main__':
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude/npy'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude/'
+    # train_file_proportion = 0.5
+    # split_dataset_to_train_test(source_path, save_path, train_file_proportion)
+    #
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\60\6_class\old\train'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\60' \
+    #             r'\6_class\old\train_picked_270'
+    # random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number=270)
+    # source_path = save_path
+    # save_path = source_path
+    # npz_file_name = 'opensarship_resize_slide_sample_expand_6classes_60_60_train.npz'
+    # generate_dataset_singlesize_with_category(source_path, save_path, npz_file_name, file_extension='npy')
+    # train_dataset = np.load(os.path.join(save_path, npz_file_name))
+    # train_x = train_dataset['x']
+    # train_y = train_dataset['y']
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\60' \
+    #               r'\6_class\old\test'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\60' \
+    #             r'\6_class\old\test_picked_110'
+    # random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number=110)
+    # source_path = save_path
+    # # save_path = source_path
+    # npz_file_name = 'opensarship_resize_slide_sample_expand_6classes_60_60_test.npz'
+    # generate_dataset_singlesize_with_category(source_path, save_path, npz_file_name, file_extension='npy')
+    # test_dataset = np.load(os.path.join(save_path, npz_file_name))
+    # test_x = test_dataset['x']
+    # test_y = test_dataset['y']
+
+    # source_path = r'F:\dataset_se\ship\mship_88'
+    # train_save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample' \
+    #                   r'\train\mship'
+    # test_save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\test' \
+    #                  r'\mship'
+    # random_choose_fix_proportion_train_test_files(source_path, train_save_path, test_save_path,
+    #                                               train_files_proportion=0.7)
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train_npy'
+    # copy_npy_files_with_category(source_path, save_path)
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train_npy'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train_picked'
+    # random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number=500)
+    # source_path = save_path
+    # # save_path = save_path
+    # npz_file_name = 'opensarship_resize_slide_sample_expand_6classes_60_60_train.npz'
+    # generate_dataset_singlesize_with_category(source_path, save_path, npz_file_name, file_extension='npy')
+    # train_dataset = np.load(os.path.join(save_path, npz_file_name))
+    # train_x = train_dataset['x']
+    # train_y = train_dataset['y']
+    # x_max = np.max(train_x, axis=1)
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/test_npy/Cargo'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/test_picked/Cargo'
+    # random_choose_fix_number_image_files(source_path, save_path, pick_file_number=200)
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_resize_h69w62\h60w60\npy'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_expand\resize_slide_sample\60\6_class\old'
+    # split_dataset_to_train_test(source_path, save_path, train_file_proportion=0.7)
+
+
     pass
 

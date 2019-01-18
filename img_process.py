@@ -51,7 +51,7 @@ def img_gray_with_category(src_basepath: str, dst_basepath, src_category: list, 
                     img_h, img_w, img_c = tmp_img.shape
                     if img_h>=min_Heigh and img_w>=min_Width:
                         if img_c==3: # RGB图像
-                            tmp_gray_img = np.zeros([img_h, img_w], dtype=np.int)
+                            tmp_gray_img = np.zeros([img_h, img_w], dtype=np.float32)
                             for ind_h in range(img_h):
                                 for ind_w in range(img_w):
                                     tmp_gray_img[ind_h][ind_w] = np.int(0.39 * tmp_img[ind_h][ind_w][0] +
@@ -86,7 +86,7 @@ def img_gray(source_path: str, save_path, extension=['png']):
                 # print(entry.path)
                 img_h, img_w, img_c = tmp_img.shape
                 if img_c == 3:
-                    tmp_gray_img = np.zeros([img_h, img_w])
+                    tmp_gray_img = np.zeros([img_h, img_w], dtype=np.float32)
                     for ind_h in range(img_h):
                         for ind_w in range(img_w):
                             tmp_gray_img[ind_h][ind_w] = np.int(0.39 * tmp_img[ind_h][ind_w][0] +
@@ -97,6 +97,40 @@ def img_gray(source_path: str, save_path, extension=['png']):
                     # print("\tsaving gray img: %s ..." % entry.name)
                     cv2.imwrite(os.path.join(save_path, img_file.name), tmp_gray_img)
     return True
+
+
+# def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
+#     """
+#     get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
+#     :param source_path: source images' root ptah, source_path/category/image files
+#     :param save_path: the path to save processed images
+#     :param source_extension: source image files' extension, default to 'tif'
+#     :return: True
+#     """
+#     if not os.path.exists(source_path):
+#         raise FileExistsError('path not found! : %s' % source_path)
+#     for category in os.scandir(source_path):
+#         if category.is_dir():
+#             os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
+#             pbar = tqdm(os.scandir(category.path))
+#             for img_files in pbar:
+#                 extension = os.path.splitext(img_files.path)[1][1:]
+#                 if extension == source_extension:
+#                     pbar.set_description("Processing %s" % img_files.name)
+#                     tif = TIFF.open(img_files.path, mode='r')
+#                     source_img = tif.read_image()
+#                     # 1st channel is the real part for VH
+#                     # 2st channel is the imaginary part for VH
+#                     # to get the amplitude value of VH
+#                     img_amplitude = np.sqrt(
+#                         np.square(source_img[:, :, 0]) +
+#                         np.square(source_img[:, :, 1]))
+#                     img_amplitude = np.reshape(img_amplitude, [img_amplitude.shape[0], img_amplitude.shape[1]])
+#                     filename_no_extension, _ = os.path.splitext(
+#                         img_files.name)
+#                     cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), img_amplitude)
+#                     np.save(os.path.join(save_path, category.name, filename_no_extension+'.npy'), img_amplitude)
+#     return True
 
 
 def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
@@ -111,7 +145,8 @@ def get_and_save_amplitude_image_slc_with_category(source_path, save_path, sourc
         raise FileExistsError('path not found! : %s' % source_path)
     for category in os.scandir(source_path):
         if category.is_dir():
-            os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
+            os.makedirs(os.path.join(save_path, 'VH', category.name), exist_ok=True)
+            os.makedirs(os.path.join(save_path, 'VV', category.name), exist_ok=True)
             pbar = tqdm(os.scandir(category.path))
             for img_files in pbar:
                 extension = os.path.splitext(img_files.path)[1][1:]
@@ -121,15 +156,26 @@ def get_and_save_amplitude_image_slc_with_category(source_path, save_path, sourc
                     source_img = tif.read_image()
                     # 1st channel is the real part for VH
                     # 2st channel is the imaginary part for VH
-                    # to get the amplitude value of VH
-                    img_amplitude = np.sqrt(
-                        np.square(source_img[:, :, 0]) +
-                        np.square(source_img[:, :, 1]))
-                    img_amplitude = np.reshape(img_amplitude, [img_amplitude.shape[0], img_amplitude.shape[1]])
-                    filename_no_extension, _ = os.path.splitext(
-                        img_files.name)
-                    cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), img_amplitude)
-                    np.save(os.path.join(save_path, category.name, filename_no_extension+'.npy'), img_amplitude)
+                    # 3st channel is the real part for VV
+                    # 4st channel is the imaginary part for VV
+                    # to get the amplitude value of VH and VV
+                    # VH
+                    img_amplitude_VH = np.sqrt(np.square(source_img[:, :, 0]) + np.square(source_img[:, :, 1]))
+                    img_amplitude_VH = np.reshape(img_amplitude_VH, [img_amplitude_VH.shape[0],
+                                                                     img_amplitude_VH.shape[1]])
+                    filename_no_extension, _ = os.path.splitext(img_files.name)
+                    cv2.imwrite(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.png'),
+                                img_amplitude_VH)
+                    np.save(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.npy'),
+                            img_amplitude_VH)
+                    # VV
+                    img_amplitude_VV = np.sqrt(np.square(source_img[:, :, 2]) + np.square(source_img[:, :, 3]))
+                    img_amplitude_VV = np.reshape(img_amplitude_VV, [img_amplitude_VV.shape[0],
+                                                                     img_amplitude_VV.shape[1]])
+                    cv2.imwrite(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.png'),
+                                img_amplitude_VV)
+                    np.save(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.npy'),
+                            img_amplitude_VV)
     return True
 
 
@@ -459,7 +505,84 @@ def padding_to_fix_sized_and_save_imgs_with_category(source_path, save_path, pad
 # slide sample
 
 
-def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=None, img_name=None):
+# def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=None, img_name=None):
+#     """
+#         sample a image with fixed size slide windows to get several fixed
+#         sized small images
+#         :param img: the original img data matrix
+#         :param sample_width: the sample image's width
+#         :param sample_height: the sample image's height
+#         :param save_path: sample images' save_path
+#         :param img_name: image files' save name, without extension !
+#         :return if successful, return the sample images data saved in a 2D
+#         matrix, which each line represents a sample image with size
+#         (1, sample_width*sample_height, channels); else return False
+#     """
+#     isfirst = True
+#     if len(img.shape) == 3:
+#         ori_height, ori_width, chanels = img.shape
+#         if ori_height >= sample_height and ori_width >= sample_width:
+#             sample_per_row = ori_width - sample_width + 1
+#             sample_per_column = ori_height - sample_height + 1
+#             for ind_row in range(sample_per_column):
+#                 for ind_col in range(sample_per_row):
+#                     if save_path is not None:
+#                         os.makedirs(save_path, exist_ok=True)
+#                         cv2.imwrite(os.path.join(save_path, img_name+'_'+str(int(
+#                             ind_row*sample_per_row+ind_col+1))+'.png'),
+#                                     img[ind_row:ind_row + sample_height, ind_col:ind_col + sample_width, :])
+#                     if isfirst:
+#                         expand_img_data = np.reshape(
+#                             img[ind_row:ind_row+sample_height,
+#                                 ind_col:ind_col+sample_width,
+#                                 :],
+#                             (1, sample_width*sample_height, chanels),
+#                             order='C')
+#                         isfirst = False
+#                     else:
+#                         expand_img_data = np.append(
+#                             expand_img_data,
+#                             np.reshape(img[ind_row:ind_row+sample_height,
+#                                        ind_col:ind_col+sample_width,
+#                                        :],
+#                                        (1, sample_width*sample_height, chanels),
+#                                        order='C'),
+#                             axis=0)
+#         return expand_img_data
+#     else:
+#         ori_height, ori_width = img.shape
+#         if ori_height >= sample_height and ori_width >= sample_width:
+#             sample_per_row = ori_width - sample_width + 1
+#             sample_per_column = ori_height - sample_height + 1
+#             for ind_row in range(sample_per_column):
+#                 for ind_col in range(sample_per_row):
+#                     if save_path is not None:
+#                         os.makedirs(save_path, exist_ok=True)
+#                         cv2.imwrite(os.path.join(save_path, img_name+'_'+str(int(ind_row*sample_per_row+ind_col+1))
+#                                                  + '.png'),
+#                                     img[ind_row:ind_row + sample_height, ind_col:ind_col + sample_width])
+#                         np.save(os.path.join(save_path, img_name+'_'+str(int(ind_row*sample_per_row+ind_col+1))
+#                                                  + '.npy'),
+#                                     img[ind_row:ind_row + sample_height, ind_col:ind_col + sample_width])
+#                     if isfirst:
+#                         expand_img_data = np.reshape(
+#                             img[ind_row:ind_row + sample_height,
+#                                 ind_col:ind_col + sample_width],
+#                             (1, sample_width * sample_height),
+#                             order='C')
+#                         isfirst = False
+#                     else:
+#                         expand_img_data = np.append(
+#                             expand_img_data,
+#                             np.reshape(img[ind_row:ind_row + sample_height,
+#                                        ind_col:ind_col + sample_width],
+#                                        (1, sample_width * sample_height),
+#                                        order='C'),
+#                             axis=0)
+#         return expand_img_data
+
+
+def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=None, img_name=None, stride=[1, 1]):
     """
         sample a image with fixed size slide windows to get several fixed
         sized small images
@@ -468,18 +591,23 @@ def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=
         :param sample_height: the sample image's height
         :param save_path: sample images' save_path
         :param img_name: image files' save name, without extension !
+        :param stride: stride, a 2 length list, [h_stride, w_stride]
         :return if successful, return the sample images data saved in a 2D
         matrix, which each line represents a sample image with size
         (1, sample_width*sample_height, channels); else return False
     """
     isfirst = True
+    h_stride = np.int(stride[0])
+    w_stride = np.int(stride[1])
     if len(img.shape) == 3:
         ori_height, ori_width, chanels = img.shape
         if ori_height >= sample_height and ori_width >= sample_width:
-            sample_per_row = ori_width - sample_width + 1
-            sample_per_column = ori_height - sample_height + 1
+            sample_per_row = np.int(np.ceil((ori_width - sample_width + 1) / w_stride))
+            sample_per_column = np.int(np.ceil((ori_height - sample_height + 1) / h_stride))
             for ind_row in range(sample_per_column):
+                ind_row = ind_row * h_stride
                 for ind_col in range(sample_per_row):
+                    ind_col = ind_col * w_stride
                     if save_path is not None:
                         os.makedirs(save_path, exist_ok=True)
                         cv2.imwrite(os.path.join(save_path, img_name+'_'+str(int(
@@ -506,10 +634,12 @@ def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=
     else:
         ori_height, ori_width = img.shape
         if ori_height >= sample_height and ori_width >= sample_width:
-            sample_per_row = ori_width - sample_width + 1
-            sample_per_column = ori_height - sample_height + 1
+            sample_per_row = np.int(np.ceil((ori_width - sample_width + 1) / w_stride))
+            sample_per_column = np.int(np.ceil((ori_height - sample_height + 1) / h_stride))
             for ind_row in range(sample_per_column):
+                ind_row = ind_row * h_stride
                 for ind_col in range(sample_per_row):
+                    ind_col = ind_col * w_stride
                     if save_path is not None:
                         os.makedirs(save_path, exist_ok=True)
                         cv2.imwrite(os.path.join(save_path, img_name+'_'+str(int(ind_row*sample_per_row+ind_col+1))
@@ -536,13 +666,17 @@ def __sample_img_with_slide_windows(img, sample_width, sample_height, save_path=
         return expand_img_data
 
 
-def sample_with_slide_window_and_save_npy_with_category(source_path, slide_height, slide_width, source_extension='png'):
+def sample_with_slide_window_and_save_npy_with_category(source_path, slide_height, slide_width, source_extension='png',
+                                                        stride=[1, 1]):
     """
     sample with slide window on images to get fix sized images, and save as .npy files
+        out images will be saved in source_path/h**w**/category/images,
+        npy file will be saved in source_path/category/npyfile
     :param source_path: source images' path, source path/category/files
     :param slide_height: slide window's height
     :param slide_width: slide window's width
     :param source_extension: source images' file extension
+    :param stride: stride, a 2 length list, [h_stride, w_stride]
     :return: True
     """
     if not os.path.exists(source_path):
@@ -569,20 +703,61 @@ def sample_with_slide_window_and_save_npy_with_category(source_path, slide_heigh
                                 img_data, slide_width, slide_height,
                                 save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width),
                                                        category.name),
-                                img_name=filename_no_extension)
+                                img_name=filename_no_extension, stride=stride)
                             is_first = False
                         else:
                             total_dataset = np.append(total_dataset, __sample_img_with_slide_windows(
                                 img_data, slide_width, slide_height,
                                 save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width),
                                                        category.name),
-                                img_name=filename_no_extension), axis=0)
+                                img_name=filename_no_extension, stride=stride), axis=0)
             if is_save_npy:
                 np.save(os.path.join(source_path, category.name+'.npy'), total_dataset)
     return True
 
 
-def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width, npy_save_name, source_extension='png'):
+# def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width, npy_save_name, source_extension='png'):
+#     """
+#     sample with slide window on images to get fix sized images, and save as .npy files
+#     :param source_path: source images' path, source path/files
+#     :param slide_height: slide window's height
+#     :param slide_width: slide window's width
+#     :param npy_save_name: the npy file's save name
+#     :param source_extension: source images' file extension
+#     :return: True
+#     """
+#     if not os.path.exists(source_path):
+#         raise FileExistsError('path not found! : %s' % source_path)
+#     pbar = tqdm(os.scandir(source_path))
+#     is_first = True
+#     for img_files in pbar:
+#         if img_files.is_file():
+#             extension = os.path.splitext(img_files.path)[1][1:]
+#             filename_no_extension, _ = os.path.splitext(img_files.name)
+#             if extension == source_extension:
+#                 pbar.set_description("Processing %s" % img_files.name)
+#                 if extension == 'npy':
+#                     img_data = np.load(img_files.path)
+#                 else:
+#                     img_data = cv2.imread(img_files.path, -1)
+#                 if is_first:
+#                     total_dataset = __sample_img_with_slide_windows(
+#                         img_data, slide_width, slide_height,
+#                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
+#                         img_name=filename_no_extension)
+#                     is_first = False
+#                 else:
+#                     total_dataset = np.append(total_dataset, __sample_img_with_slide_windows(
+#                         img_data, slide_width, slide_height,
+#                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
+#                         img_name=filename_no_extension), axis=0)
+#     if npy_save_name is not None:
+#         np.save(os.path.join(source_path, npy_save_name), total_dataset)
+#     return True
+
+
+def sample_with_slide_window_and_save_npy_stride(source_path, slide_height, slide_width, npy_save_name,
+                                                 source_extension='png', stride=[1, 1]):
     """
     sample with slide window on images to get fix sized images, and save as .npy files
     :param source_path: source images' path, source path/files
@@ -590,6 +765,7 @@ def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width
     :param slide_width: slide window's width
     :param npy_save_name: the npy file's save name
     :param source_extension: source images' file extension
+    :param stride: stride, a 2 length list, [h_stride, w_stride]
     :return: True
     """
     if not os.path.exists(source_path):
@@ -610,13 +786,13 @@ def sample_with_slide_window_and_save_npy(source_path, slide_height, slide_width
                     total_dataset = __sample_img_with_slide_windows(
                         img_data, slide_width, slide_height,
                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
-                        img_name=filename_no_extension)
+                        img_name=filename_no_extension, stride=stride)
                     is_first = False
                 else:
                     total_dataset = np.append(total_dataset, __sample_img_with_slide_windows(
                         img_data, slide_width, slide_height,
                         save_path=os.path.join(source_path, 'h'+str(slide_height)+'w'+str(slide_width)),
-                        img_name=filename_no_extension), axis=0)
+                        img_name=filename_no_extension, stride=stride), axis=0)
     if npy_save_name is not None:
         np.save(os.path.join(source_path, npy_save_name), total_dataset)
     return True
@@ -652,20 +828,24 @@ def resize_img_and_save_to_folder_opensarship_slc_with_category(
                     img_amplitude = np.sqrt(
                         np.square(source_img[:, :, 0]) +
                         np.square(source_img[:, :, 1]))
-                    image = misc.toimage(img_amplitude)
-                    im_resize = misc.imresize(image, (new_size[0], new_size[
-                        1]))
+                    # image = misc.toimage(img_amplitude)
+                    # im_resize = misc.imresize(image, (new_size[0], new_size[
+                    #     1]))
+                    im_resize = cv2.resize(img_amplitude, (new_size[1], new_size[0]))
                     filename_no_extension, extension = os.path.splitext(
                         img_files.name)
                     os.makedirs(os.path.join(save_path, category.name),
                                 exist_ok=True)
                     os.chdir(os.path.join(save_path, category.name))
-                    misc.imsave(filename_no_extension+'.png', im_resize)
+                    # misc.imsave(filename_no_extension+'.png', im_resize)
+                    cv2.imwrite(filename_no_extension + '.png', im_resize)
+                    np.save(filename_no_extension + '.npy', im_resize)
+
     return True
 
 
 def resize_img_and_save_to_folder(
-    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False, img_smallest=20):
+    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False, img_smallest=1):
     """
     resize images to fixed size and save them
     the source path's struct : root/image files
@@ -717,14 +897,17 @@ def resize_img_and_save_to_folder(
 
 
 def resize_img_and_save_to_folder_with_category(
-    source_path, save_path, source_extension='png', new_size=[88, 88]):
+    source_path, save_path, source_extension='png', new_size=[88, 88], is_do_gray=False, img_smallest=1):
     """
     resize images to fixed size and save them
     the source path's struct : root/category/image files
     also save the npy files contain float value
     :param source_path: source images' root ptah
-    :param save_path: the path to save resized images
+    :param save_path: the path to save resized images, save path/category/images
     :param source_extension: source image files' extension, default to 'png'
+    :param new_size: image's new size: [height, width]
+    :param is_do_gray: if to do gray on image, default to False
+    :param img_smallest: the smallest size of image which is to be processed
     :return: True
     """
     if not os.path.exists(source_path):
@@ -741,12 +924,26 @@ def resize_img_and_save_to_folder_with_category(
                             source_img = np.load(img_files.path)
                         else:
                             source_img = cv2.imread(img_files.path, -1)
-                        # image = misc.toimage(source_img, mode='F')
-                        # im_resize = misc.imresize(image, (new_size[0], new_size[
-                        #     1]))
-                        im_resize = cv2.resize(source_img, (new_size[1], new_size[0]))
-                        filename_no_extension, extension = os.path.splitext(
-                            img_files.name)
+                        if source_img.shape[0] < img_smallest or source_img.shape[1] < img_smallest:
+                            continue
+                        if len(source_img.shape) == 3:
+                            # 3 channels :RGB
+                            if is_do_gray:
+                                # gray = 0.39 * R + 0.5 * G + 0.11 * B
+                                img_gray = 0.39 * source_img[:, :, 0] + 0.5 * source_img[:, :, 1] + 0.11 * source_img[:,
+                                                                                                           :, 2]
+                                # image = misc.toimage(img_gray)
+                                # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                                im_resize = cv2.resize(img_gray, (new_size[1], new_size[0]))
+                            else:
+                                # image = misc.toimage(source_img)
+                                # im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                                im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
+                        elif len(source_img.shape) == 2:
+                            # image = misc.toimage(source_img)
+                            # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                            im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
+                        filename_no_extension, extension = os.path.splitext(img_files.name)
                         os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
                         os.chdir(os.path.join(save_path, category.name))
                         # misc.imsave(filename_no_extension+'.png', im_resize)
@@ -767,10 +964,10 @@ def __rotate_img_90_degree(img):
     img_width = None
     if len(img.shape) == 3:
         img_height, img_width, img_channels = img.shape
-        rotated_img = np.zeros([img_width, img_height, img_channels])
+        rotated_img = np.zeros([img_width, img_height, img_channels], dtype=np.float32)
     elif len(img.shape) == 2:
         img_height, img_width = img.shape
-        rotated_img = np.zeros([img_width, img_height])
+        rotated_img = np.zeros([img_width, img_height], dtype=np.float32)
     if img_width is None:
         raise ValueError('''input image's shape is not valid !''')
     for ind_row in range(img_height):
@@ -868,9 +1065,199 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
     return True
 
 
+def gen_dataset_img_size_statistic(source_path, source_extension):
+    """
+    generate dataset image's size statistic data for a particular category
+    :param source_path: the image files path , source_path/image files
+    :return: two matrix, size_statistics and size_list
+            size_statistics:
+                      width1 width2 width3 width4 ...
+             height1  number number number number ...
+             height2  number ...
+             height3  number .   .   .
+             height4  number  .        .        .
+             .         .
+             .                     .
+             .                                   .
+             size_list:
+             [[height1, width1, number]
+              [height2, width2, number]
+              ...]
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    img_width_list = []
+    img_height_list = []
+    for img_file in os.scandir(source_path):
+        if img_file.is_file():
+            extension = os.path.splitext(img_file.path)[1][1:]
+            if extension == source_extension:
+                if extension == 'npy':
+                    source_img = np.load(img_file.path)
+                elif extension in ['tif', 'tiff']:
+                    tif = TIFF.open(img_file.path, mode='r')
+                    source_img = tif.read_image()
+                else:
+                    source_img = cv2.imread(img_file.path, -1)
+                img_height = source_img.shape[0]
+                img_width = source_img.shape[1]
+                if img_height not in img_height_list:
+                    img_height_list.append(img_height)
+                if img_width not in img_width_list:
+                    img_width_list.append(img_width)
+    img_width_list.sort()  # ascending
+    img_height_list.sort()
+    size_statistic = np.zeros([len(img_height_list)+1, len(img_width_list)+1], dtype=np.int32)
+    size_statistic[0, 1:] = img_width_list
+    size_statistic[1:, 0] = img_height_list
+    pbar = tqdm(os.scandir(source_path))
+    for img_file in pbar:
+        if img_file.is_file():
+            pbar.set_description("Processing %s" % img_file.name)
+            extension = os.path.splitext(img_file.path)[1][1:]
+            if extension == source_extension:
+                if extension == 'npy':
+                    source_img = np.load(img_file.path)
+                elif extension in ['tif', 'tiff']:
+                    tif = TIFF.open(img_file.path, mode='r')
+                    source_img = tif.read_image()
+                else:
+                    source_img = cv2.imread(img_file.path, -1)
+                img_height = source_img.shape[0]
+                img_width = source_img.shape[1]
+                for ind_w in range(len(img_width_list)):
+                    if img_width == img_width_list[ind_w]:
+                        break
+                for ind_h in range(len(img_height_list)):
+                    if img_height == img_height_list[ind_h]:
+                        break
+                size_statistic[ind_h+1, ind_w+1] += 1
+    is_first = True
+    for ind_h in range(1, size_statistic.shape[0]):
+        for ind_w in range(1, size_statistic.shape[1]):
+            if size_statistic[ind_h, ind_w]:
+                if is_first:
+                    size_list = np.array([[size_statistic[ind_h, 0],
+                                           size_statistic[0, ind_w],
+                                           size_statistic[ind_h, ind_w]]])
+                    is_first = False
+                else:
+                    size_list = np.append(size_list,
+                                          np.array(
+                                              [[size_statistic[ind_h, 0],
+                                               size_statistic[0, ind_w],
+                                               size_statistic[ind_h, ind_w]]]),
+                                          axis=0)
+    # print(img_height_list)
+    # print(img_width_list)
+    print(size_statistic)
+    print('\n')
+    print(size_list)
+    return size_statistic, size_list
+
+
+def change_img_file_extension(source_path, save_path, ori_extension, new_extension):
+    """
+    change image files' extension, source_path/image files
+    :param source_path: original images' path
+    :param save_path: new images' save path
+    :param ori_extension: original images' file extension
+    :param new_extension: new extension
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    os.makedirs(save_path, exist_ok=True)
+    pbar = tqdm(os.scandir(source_path))
+    for img_files in pbar:
+        if img_files.is_file():
+            extension = os.path.splitext(img_files.path)[1][1:]
+            if extension == ori_extension:
+                pbar.set_description("Processing %s" % img_files.name)
+                if extension == 'npy':
+                    source_img = np.load(img_files.path)
+                else:
+                    source_img = cv2.imread(img_files.path, -1)
+                filename_no_extension, extension = os.path.splitext(img_files.name)
+                os.chdir(save_path)
+                cv2.imwrite(filename_no_extension+'.'+new_extension, source_img)
+
+
 
 
 if __name__ == '__main__':
-	pass
+    # source_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship'
+    # save_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_60_60'
+    # resize_img_and_save_to_folder(source_path, save_path, new_size=[60, 60], img_smallest=40, is_do_gray=True)
+    # source_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_60_60'
+    # save_path = r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset'
+    # npy_file_name = 'ship_60_60_DOTA.npy'
+    # gen_npy_file(source_path, save_path, npy_file_name, img_extension='npy')
+    # a = np.load(r'/media/se/document/dataset_se/DOTA_wuhanU/DOTA1.0_wuhanU/train/out_dataset/ship_60_60_DOTA.npy')
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude_NEW'
+    # get_and_save_amplitude_image_slc_with_category(source_path, save_path)
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_crop'
+    # crop_imgs_and_save_smaller(source_path, save_path, 88, 88)
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
+    # padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height=94, padding_width=90, source_extension='png')
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
+    # sample_with_slide_window_and_save_npy(source_path, slide_height=88, slide_width=88)
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\temp2'
+    # save_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC_amplitude_force_padding_h94w90'
+    # padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height=88, padding_width=88)
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/temp'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude_resize_h69w62'
+    # resize_img_and_save_to_folder_with_category(source_path, save_path, source_extension='npy', new_size=[69, 62])
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/temp2'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude_resize_h69w62'
+    # resize_img_and_save_to_folder_with_category(source_path, save_path, source_extension='npy', new_size=[60, 60])
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude_resize_h69w62'
+    # sample_with_slide_window_and_save_npy(source_path, slide_height=60, slide_width=60, source_extension='npy')
+    # source_path = r'/media/se/document/dataset_se/ship/mship'
+    # save_path = r'/media/se/document/dataset_se/ship/mship_resize_61_61'
+    # resize_img_and_save_to_folder(
+    #     source_path, save_path, source_extension='tiff', new_size=[61, 61])
+    # sample_with_slide_window_and_save_npy_base(save_path, slide_height=60, slide_width=60, npy_save_name='mship_60.npy',
+    #                                            source_extension='npy')
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude/train/Dredging'
+    # save_path = r'/home/se/tmp/Dredging'
+    # # # # /home/se/tmp
+    # resize_img_and_save_to_folder(source_path, save_path, source_extension='npy', new_size=[64, 64], img_smallest=1)
+    # source_path = save_path
+    # npy_save_name = 'meiyong.npy'
+    # sample_with_slide_window_and_save_npy(source_path, 60, 60, npy_save_name, source_extension='npy')
+    # source_path = os.path.join(save_path, 'h60w60')
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train/Tug'
+    # rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extension='npy')
+    # rotate_img_180degree_and_save_to_folder(source_path, save_path, source_extension='npy')
+    # rotate_img_270degree_and_save_to_folder(source_path, save_path, source_extension='npy')
+    # source_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_amplitude/train/Cargo'
+    # save_path = r'/media/se/document/dataset_se/OpenSARShip/OpenSARShip_img_class_data/Patch/SLC_expand/resize_slide_sample/60/6_class/train/Cargo'
+    # # # /home/se/tmp
+    # resize_img_and_save_to_folder(source_path, save_path, source_extension='npy', new_size=[60, 60], img_smallest=40)
+    # resize_img_and_save_to_folder(r'/home/se/tmp/test', r'/home/se/tmp/test/1', source_extension='png', new_size=[10, 10])
+    # a = cv2.imread(r'/media/se/document/dataset_se/shixiong/ndvi/h256w256/3channel/NDVI-after_1.png', -1)
+    # sample_with_slide_window_and_save_npy_stride(r'/media/se/document/dataset_se/shixiong/ndvi', 256, 256, 'spot.npy', stride=[30, 30], source_extension='png')
+    # pbar = tqdm(os.scandir(r'/media/se/document/dataset_se/shixiong/ndvi/h256w256'))
+    # for img_files in pbar:
+    #     if img_files.is_file():
+    #         extension = os.path.splitext(img_files.path)[1][1:]
+    #         if extension == 'png':
+    #             pbar.set_description("Processing %s" % img_files.name)
+    #             source_img = cv2.imread(img_files.path)
+    #             cv2.imwrite(os.path.join(r'/media/se/document/dataset_se/shixiong/ndvi/h256w256/3channel', img_files.name), source_img)
+    # source_path = r'F:\dataset_se\OpenSARShip\OpenSARShip_img_class_data\Patch\SLC\Other Type'
+    # a, b = gen_dataset_img_size_statistic(source_path, source_extension='tif')
+    # source_path = r'F:\dataset_se\shixiong\data\spot-before\1'
+    # save_path = r'F:\dataset_se\shixiong\data\spot-before\1_png'
+    # change_img_file_extension(source_path, save_path, 'bmp', 'png')
+
+
+
+
+    pass
 
 
