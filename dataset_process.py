@@ -86,7 +86,7 @@ def generate_train_validation_dataset_multisize(
         validation_x, validation_y, validation_x_shape
 
 
-def generate_train_validation_dataset_singlesize(
+def generate_train_validation_dataset_singlesize_with_category(
         source_path, save_path, npz_file_name, validation_proportion,
         file_extension='png'):
     """
@@ -173,7 +173,7 @@ def generate_dataset_singlesize_with_category(
     and save them in a .npz file, with variable named 'x', 'y'
     :param source_path: the store path of source images
     :param save_path: the path to save .npz file
-    :param file_extension: the image files' extension, default to 'png'
+    :param file_extension: the image files' extension, default to 'png', also support 'npy'
     :return: dataset_x, dataset_y, category_name
     """
     if not os.path.exists(source_path):
@@ -225,7 +225,40 @@ def generate_dataset_singlesize_with_category(
     return dataset_x, dataset_y, category_name
 
 
-def generate_train_test_validation_dataset_multisize(
+def generate_dataset_singlesize_no_label(
+        source_path, save_path, npy_file_name, file_extension='png'):
+    """
+    load single size source images and generate  datasets
+    (the struct of source path must be :source_pathimage files)
+    and save them in a .npy file
+    :param source_path: the store path of source images
+    :param save_path: the path to save .npy file
+    :param file_extension: the image files' extension, default to 'png', also support 'npy'
+    :return: dataset_x
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('file not found! : %s' % source_path)
+    dataset_x = []
+    is_first = True
+    pbar = tqdm(os.scandir(source_path))
+    for img_file in pbar:
+        extension = os.path.splitext(img_file.path)[1][1:]
+        pbar.set_description("Processing %s" % img_file.path)
+        if extension == file_extension:
+            if extension == 'npy':
+                temp_img = np.load(img_file.path)
+            else:
+                temp_img = cv2.imread(img_file.path, -1)
+            if is_first:
+                dataset_x = np.reshape(temp_img, [1, -1])
+                is_first = False
+            else:
+                dataset_x = np.append(dataset_x, np.reshape(temp_img, [1, -1]), axis=0)
+    np.save(os.path.join(save_path, npy_file_name), dataset_x)
+    return dataset_x
+
+
+def generate_train_test_validation_dataset_multisize_with_category(
         source_path, test_proportion, validation_proportion):
     """
     load source images and generate train, validation and test datasets
@@ -318,7 +351,7 @@ def _random_choose_fix_proportion_train_test_files(
     :param source_path: the source images' store folder, struct should be source_path/image_files
     :param train_save_path: the folder to store picked train image files
     :param test_save_path: the folder to store picked test image files
-    :param train_files_proportion: the train files' number to be picked
+    :param train_files_proportion: the train files' proportion to be picked
     :return: True
     """
     if not os.path.exists(source_path):
@@ -565,25 +598,9 @@ def generate_dataset_multisize(source_path, number_category, this_category_index
     return dataset_x, dataset_y, dataset_x_shape
 
 
-def random_choose_fix_number_pattern_multise(x, y, shape_matrix, pick_number):
-    """
-    random pick fix number of patterns form x, y and shape_matrix
-    :param x: a list object, per item stores a ndarray, which store a image data
-    :param y: a ndarray object, is the one hot labels
-    :param shape_matrix: a list object, each object is also a list object : [image_height, img_width], respect to x
-    :param pick_number: the number of pattern to pick
-    :return: picked_x, picked_y, picked_shape
-    """
-    total_files_number = len(x)
-    pick_indices = np.random.choice(total_files_number, pick_number, replace=False)
-    picked_x = []
-    picked_shape = []
-    for indices in pick_indices:  # 'List' object, more complicated !!!
-        random_data_x.append(data_x[indices])
-        random_data_z.append(data_z[indices])
-    return True
-
-
 if __name__ == '__main__':
+
+
     pass
+
 
