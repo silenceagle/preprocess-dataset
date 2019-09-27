@@ -88,18 +88,27 @@ def generate_train_validation_dataset_multisize(
 
 def generate_train_validation_dataset_singlesize_with_category(
         source_path, save_path, npz_file_name, validation_proportion,
-        file_extension='png'):
+        file_extension='png', include_category='all', not_include_category=None, max_train_size=None,
+        max_validation_size=None, is_save_npz=True):
     """
     load single size source images and generate train and validation datasets
     (the struct of source path must be :source_path/category_name/image files)
     and save them in a .npz file, with variable named 'train_x', 'train_y',
     'validation_x', 'validation_y'
+    warning: For the params 'include_category' and 'not_include_category', only one of them can be used in one call.
     :param source_path: the store path of source images
     :param save_path: the path to save .npz file
     :param validation_proportion: the validation dataset proportion of total
             dataset
-    :param file_extension: the image files' extension, default to 'png'
-    :return: train_x, train_y, validation_x, validation_y
+    :param file_extension: the image files' extension, default to 'png', also support 'npy'
+    :param include_category: the category or the sub folder's name to be used, default to 'all', which means all
+            categories will be used. To chose specific categories, use ['ca_1', 'ca_2'] etc.
+    :param not_include_category: the category or the sub folder's name to be used, default to None, which means all
+            categories will be used. To chose specific categories, use ['ca_1', 'ca_2'] etc.
+    :param max_train_size: the max number of samples in each category of train set, default to None, means infinity.
+    :param max_validation_size: the max number of samples in each category of train set, default to None, infinity.
+    :param is_save_npz: if to save npz file, default to True.
+    :return: train_x, train_y, validation_x, validation_y, category_name
     """
     if not os.path.exists(source_path):
         raise FileExistsError('file not found! : %s' % source_path)
@@ -107,6 +116,13 @@ def generate_train_validation_dataset_singlesize_with_category(
     for category in os.scandir(source_path):
         if category.is_dir():
             number_of_categories += 1
+    if include_category == 'all' and not_include_category is None:
+        pass
+    else:
+        if include_category != 'all':
+            number_of_categories = len(include_category)
+        else:
+            number_of_categories = number_of_categories - len(not_include_category)
     number_of_image_per_category = np.zeros(number_of_categories, dtype=int)
     category_name = []
     index_category = 0
@@ -114,14 +130,27 @@ def generate_train_validation_dataset_singlesize_with_category(
     is_first_total = True
     for category in os.scandir(source_path):
         if category.is_dir():
-            index_category += 1
             number_of_images = 0
-            category_name.append(category.name)
+            if include_category != 'all' or not_include_category is not None:
+                if include_category != 'all':
+                    if category.name not in include_category:
+                        continue
+                else:
+                    if category.name in not_include_category:
+                        continue
+                index_category += 1
+                category_name.append(category.name)
+            else:
+                index_category += 1
+                category_name.append(category.name)
             for img_file in os.scandir(category.path):
                 extension = os.path.splitext(img_file.path)[1][1:]
                 if extension == file_extension:
                     number_of_images += 1
-                    temp_img = cv2.imread(img_file.path, -1)
+                    if extension == 'npy':
+                        temp_img = np.load(img_file.path)
+                    else:
+                        temp_img = cv2.imread(img_file.path, -1)
                     if is_first:
                         dataset_x = np.reshape(temp_img, [1, -1])
                         is_first = False
@@ -141,6 +170,12 @@ def generate_train_validation_dataset_singlesize_with_category(
             this_train_indices = np.array(
                 list(set(range(number_of_images)) -
                      set(this_validation_indices)))
+            if max_train_size is not None:
+                if this_train_indices.size > max_train_size:
+                    this_train_indices = this_train_indices[:max_train_size]
+            if max_validation_size is not None:
+                if this_validation_indices.size >= max_validation_size:
+                    this_validation_indices = this_validation_indices[:max_validation_size]
             if is_first_total:
                 train_x = dataset_x[this_train_indices]
                 train_y = dataset_y[this_train_indices]
@@ -159,14 +194,15 @@ def generate_train_validation_dataset_singlesize_with_category(
                                          dataset_y[this_validation_indices],
                                          axis=0)
     # print(number_of_image_per_category)
-    np.savez(os.path.join(save_path, npz_file_name), train_x=train_x,
-             train_y=train_y, validation_x=validation_x,
-             validation_y=validation_y)
-    return train_x, train_y, validation_x, validation_y
+    if is_save_npz:
+        np.savez(os.path.join(save_path, npz_file_name), train_x=train_x,
+                 train_y=train_y, validation_x=validation_x,
+                 validation_y=validation_y)
+    return train_x, train_y, validation_x, validation_y, category_name
 
 
 def generate_dataset_singlesize_with_category(
-        source_path, save_path, npz_file_name, file_extension='png'):
+        source_path, save_path, npz_file_name, file_extension='png', include_category='all', is_save_npz=True):
     """
     load single size source images and generate  datasets
     (the struct of source path must be :source_path/category_name/image files)
@@ -174,14 +210,20 @@ def generate_dataset_singlesize_with_category(
     :param source_path: the store path of source images
     :param save_path: the path to save .npz file
     :param file_extension: the image files' extension, default to 'png', also support 'npy'
+    :param include_category: the category or the sub folder's name to be used, default to 'all', which means all
+            categories will be used. To chose specific categories, use ['ca_1', 'ca_2'] etc.
+    :param is_save_npz: if to save npz file, default to True.
     :return: dataset_x, dataset_y, category_name
     """
     if not os.path.exists(source_path):
         raise FileExistsError('file not found! : %s' % source_path)
     number_of_categories = 0
-    for category in os.scandir(source_path):
-        if category.is_dir():
-            number_of_categories += 1
+    if include_category == 'all':
+        for category in os.scandir(source_path):
+            if category.is_dir():
+                number_of_categories += 1
+    else:
+        number_of_categories = len(include_category)
     number_of_image_per_category = np.zeros(number_of_categories, dtype=int)
     category_name = []
     dataset_x = []
@@ -191,6 +233,9 @@ def generate_dataset_singlesize_with_category(
     is_first_total = True
     for category in os.scandir(source_path):
         if category.is_dir():
+            if 'all' != include_category:
+                if category.name not in include_category:
+                    continue
             index_category += 1
             number_of_images = 0
             category_name.append(category.name)
@@ -221,7 +266,8 @@ def generate_dataset_singlesize_with_category(
             else:
                 dataset_x = np.append(dataset_x, this_dataset_x, axis=0)
                 dataset_y = np.append(dataset_y, this_dataset_y, axis=0)
-    np.savez(os.path.join(save_path, npz_file_name), x=dataset_x, y=dataset_y)
+    if is_save_npz:
+        np.savez(os.path.join(save_path, npz_file_name), x=dataset_x, y=dataset_y)
     return dataset_x, dataset_y, category_name
 
 
@@ -344,7 +390,7 @@ def generate_train_test_validation_dataset_multisize_with_category(
 
 
 def _random_choose_fix_proportion_train_test_files(
-        source_path, train_save_path, test_save_path, train_files_proportion):
+        source_path, train_save_path, test_save_path, train_files_proportion, pick_extension='all'):
     """
     random pick fix proportion of files from source path and copy it to train
     folder, the rest copy to test folder
@@ -352,6 +398,8 @@ def _random_choose_fix_proportion_train_test_files(
     :param train_save_path: the folder to store picked train image files
     :param test_save_path: the folder to store picked test image files
     :param train_files_proportion: the train files' proportion to be picked
+    :param pick_extension: the extension of files which will be picked, default to 'all' means this function will work
+           among all the files.
     :return: True
     """
     if not os.path.exists(source_path):
@@ -359,6 +407,10 @@ def _random_choose_fix_proportion_train_test_files(
     os.makedirs(train_save_path, exist_ok=True)
     os.makedirs(test_save_path, exist_ok=True)
     file_name_list = os.listdir(source_path)
+    if pick_extension != 'all':
+        for file_name in file_name_list:
+            if file_name.split('.')[-1] != pick_extension:
+                file_name_list.remove(file_name)
     total_files_number = len(file_name_list)
     train_files_number = int(
         np.ceil(total_files_number * train_files_proportion))
@@ -378,34 +430,38 @@ def _random_choose_fix_proportion_train_test_files(
 
 
 def split_dataset_to_train_test_with_category(
-        source_path, save_path, train_file_proportion=0.5):
+        source_path, save_path, train_file_proportion=0.5, pick_extension='all'):
     """
     split the total dataset to two part: train and test
     :param source_path: dataset path, struct should be source_path/category/image_files
     :param save_path: train and test folders' root path
     :param train_file_proportion: train proportion of total dataset
+    :param pick_extension: the extension of files which will be picked, default to 'all' means this function will work
+           among all the files.
     :return: True
     """
     if not os.path.exists(source_path):
         raise FileExistsError('file not found! : %s' % source_path)
     pbar = tqdm(os.scandir(source_path))
     for sub_folder in pbar:
-        pbar.set_description("Processing %s" % sub_folder.name)
         if sub_folder.is_dir():
+            pbar.set_description("Processing %s" % sub_folder.name)
             train_save_path = os.path.join(save_path, 'train', sub_folder.name)
             test_save_path = os.path.join(save_path, 'test', sub_folder.name)
             _random_choose_fix_proportion_train_test_files(
                 sub_folder.path, train_save_path, test_save_path,
-                train_file_proportion)
+                train_file_proportion, pick_extension=pick_extension)
     return True
 
 
-def random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number):
+def random_choose_fix_number_image_files_with_category(source_path, save_path, pick_file_number, pick_extension='all'):
     """
     random pick fix number of files from source path and copy them to save_path/category/images
     :param source_path: the source images' store folder, struct should be source_path/category/image_files
     :param save_path: the folder to store picked image files
     :param pick_file_number: the number of image files to pick
+    :param pick_extension: the extension of files which will be picked, default to 'all' means this function will work
+           among all the files.
     :return: True
     """
     if not os.path.exists(source_path):
@@ -416,6 +472,10 @@ def random_choose_fix_number_image_files_with_category(source_path, save_path, p
             this_pbar.set_description("Processing %s" % category.name)
             os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
             file_name_list = os.listdir(os.path.join(source_path, category.name))
+            if pick_extension != 'all':
+                for file_name in file_name_list:
+                    if file_name.split('.')[-1] != pick_extension:
+                        file_name_list.remove(file_name)
             total_files_number = len(file_name_list)
             pick_files_indices = np.random.choice(total_files_number, pick_file_number, replace=False)
             for file_index in pick_files_indices:
@@ -424,18 +484,24 @@ def random_choose_fix_number_image_files_with_category(source_path, save_path, p
     return True
 
 
-def random_choose_fix_number_image_files(source_path, save_path, pick_file_number):
+def random_choose_fix_number_image_files(source_path, save_path, pick_file_number, pick_extension='all'):
     """
     random pick fix number of files from source path and copy them to save_path/images
     :param source_path: the source images' store folder, struct should be source_path/image_files
     :param save_path: the folder to store picked image files
     :param pick_file_number: the number of image files to pick
+    :param pick_extension: the extension of files which will be picked, default to 'all' means this function will work
+           among all the files.
     :return: True
     """
     if not os.path.exists(source_path):
         raise FileExistsError('file not found! : %s' % source_path)
     os.makedirs(save_path, exist_ok=True)
     file_name_list = os.listdir(source_path)
+    if pick_extension != 'all':
+        for file_name in file_name_list:
+            if file_name.split('.')[-1] != pick_extension:
+                file_name_list.remove(file_name)
     total_files_number = len(file_name_list)
     pick_files_indices = np.random.choice(total_files_number, pick_file_number, replace=False)
     for file_index in pick_files_indices:
@@ -599,8 +665,6 @@ def generate_dataset_multisize(source_path, number_category, this_category_index
 
 
 if __name__ == '__main__':
-
-
     pass
 
 

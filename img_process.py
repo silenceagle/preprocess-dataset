@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 from libtiff import TIFF
 from scipy import misc
+import shutil
 
 
 def gen_destfolder(src_basepath: str, dst_basepath=' '):
@@ -107,40 +108,6 @@ def img_gray(source_path: str, save_path, extension=['png']):
     return True
 
 
-# def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
-#     """
-#     get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
-#     :param source_path: source images' root ptah, source_path/category/image files
-#     :param save_path: the path to save processed images
-#     :param source_extension: source image files' extension, default to 'tif'
-#     :return: True
-#     """
-#     if not os.path.exists(source_path):
-#         raise FileExistsError('path not found! : %s' % source_path)
-#     for category in os.scandir(source_path):
-#         if category.is_dir():
-#             os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
-#             pbar = tqdm(os.scandir(category.path))
-#             for img_files in pbar:
-#                 extension = os.path.splitext(img_files.path)[1][1:]
-#                 if extension == source_extension:
-#                     pbar.set_description("Processing %s" % img_files.name)
-#                     tif = TIFF.open(img_files.path, mode='r')
-#                     source_img = tif.read_image()
-#                     # 1st channel is the real part for VH
-#                     # 2st channel is the imaginary part for VH
-#                     # to get the amplitude value of VH
-#                     img_amplitude = np.sqrt(
-#                         np.square(source_img[:, :, 0]) +
-#                         np.square(source_img[:, :, 1]))
-#                     img_amplitude = np.reshape(img_amplitude, [img_amplitude.shape[0], img_amplitude.shape[1]])
-#                     filename_no_extension, _ = os.path.splitext(
-#                         img_files.name)
-#                     cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), img_amplitude)
-#                     np.save(os.path.join(save_path, category.name, filename_no_extension+'.npy'), img_amplitude)
-#     return True
-
-
 def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
     """
     get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
@@ -180,6 +147,47 @@ def get_and_save_amplitude_image_slc_with_category(source_path, save_path, sourc
                     img_amplitude_VV = np.sqrt(np.square(source_img[:, :, 2]) + np.square(source_img[:, :, 3]))
                     img_amplitude_VV = np.reshape(img_amplitude_VV, [img_amplitude_VV.shape[0],
                                                                      img_amplitude_VV.shape[1]])
+                    cv2.imwrite(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.png'),
+                                img_amplitude_VV)
+                    np.save(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.npy'),
+                            img_amplitude_VV)
+    return True
+
+
+def get_and_save_amplitude_image_grd_with_category(source_path, save_path, source_extension='tif'):
+    """
+    get the amplitude images of OpenSARShip GRD mode images and save .png images and the .npy files
+    :param source_path: source images' root ptah, source_path/category/image files
+    :param save_path: the path to save processed images
+    :param source_extension: source image files' extension, default to 'tif'
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    for category in os.scandir(source_path):
+        if category.is_dir():
+            os.makedirs(os.path.join(save_path, 'VH', category.name), exist_ok=True)
+            os.makedirs(os.path.join(save_path, 'VV', category.name), exist_ok=True)
+            pbar = tqdm(os.scandir(category.path))
+            for img_files in pbar:
+                extension = os.path.splitext(img_files.path)[1][1:]
+                if extension == source_extension:
+                    pbar.set_description("Processing %s" % img_files.name)
+                    tif = TIFF.open(img_files.path, mode='r')
+                    source_img = tif.read_image()
+                    # 1st channel is the amplitude value for VH
+                    # 2st channel is the amplitude value for VV
+                    # VH
+                    img_amplitude_VH = np.reshape(source_img[:, :, 0], [source_img.shape[0],
+                                                                        source_img.shape[1]])
+                    filename_no_extension, _ = os.path.splitext(img_files.name)
+                    cv2.imwrite(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.png'),
+                                img_amplitude_VH)
+                    np.save(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.npy'),
+                            img_amplitude_VH)
+                    # VV
+                    img_amplitude_VV = np.reshape(source_img[:, :, 1], [source_img.shape[0],
+                                                                        source_img.shape[1]])
                     cv2.imwrite(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.png'),
                                 img_amplitude_VV)
                     np.save(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.npy'),
@@ -370,7 +378,7 @@ def crop_imgs_and_save_smaller(source_path, save_path, crop_height: int, crop_wi
 
 def padding_images_with_zero(
         source_path, save_path, out_size=[[32, 32], [64, 64], [128, 128], [256, 256], [512, 512]],
-        image_extension='png'):
+        image_extension='png', is_save_npy=False):
     """
     padding images with zeros to get required size images, the final image's size is determined by it original size.
     Eg. when the out_size is [[32, 32], [64, 64]]
@@ -381,6 +389,7 @@ def padding_images_with_zero(
     :param save_path: the output images' save path
     :param out_size: the output image size, Eg. [[32, 32], [64, 64], ...]
     :param image_extension: image file's extension, default to 'png', also support 'npy'
+    :param is_save_npy: bool. if to save npy files, default to false
     :return: True
     """
     if not os.path.exists(source_path):
@@ -399,12 +408,13 @@ def padding_images_with_zero(
                 is_valid, out_img, _ = __matrix_padding_multi_size_soft(img_data, out_size=out_size)
                 if is_valid:
                     cv2.imwrite(os.path.join(save_path, img_files.name.split('.')[0]+'.png'), out_img)
-                    np.save(os.path.join(save_path, img_files.name.split('.')[0]+'.npy'), out_img)
+                    if is_save_npy:
+                        np.save(os.path.join(save_path, img_files.name.split('.')[0]+'.npy'), out_img)
 
 
 def padding_images_with_zero_with_category(
         source_path, save_path, out_size=[[32, 32], [64, 64], [128, 128], [256, 256], [512, 512]],
-        image_extension='png'):
+        image_extension='png', is_save_npy=False):
     """
     padding images with zeros to get required size images, the final image's size is determined by it original size.
     Eg. when the out_size is [[32, 32], [64, 64]]
@@ -415,13 +425,15 @@ def padding_images_with_zero_with_category(
     :param save_path: the output images' save path
     :param out_size: the output image size, Eg. [[32, 32], [64, 64], ...]
     :param image_extension: image file's extension, default to 'png', also support 'npy'
+    :param is_save_npy: bool. if to save npy files, default to false
     :return: True
     """
     if not os.path.exists(source_path):
         raise FileExistsError('path not found! : %s' % source_path)
     for category in os.scandir(source_path):
         if category.is_dir():
-            padding_images_with_zero(category.path, os.path.join(save_path, category.name), out_size, image_extension)
+            padding_images_with_zero(category.path, os.path.join(save_path, category.name), out_size, image_extension,
+                                     is_save_npy)
 
     return True
 
@@ -1132,7 +1144,7 @@ def __rotate_img_90_degree(img):
 
 
 def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extension='png',  save_extension='png',
-                                           is_save_npy=False):
+                                           is_save_npy=False, is_save_img=True):
     """
     rotate image 90 degree clockwise and save to folder
     :param source_path: source_path/image files
@@ -1140,6 +1152,7 @@ def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extens
     :param source_extension: image files' extension, default to 'png'
     :param save_extension: rotated image's save extension, default to 'png'
     :param is_save_npy: if to save npy files, default to False
+    :param is_save_img: if to save image files, default to True.
     :return: True
     """
     if not os.path.exists(source_path):
@@ -1158,21 +1171,23 @@ def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extens
                 rotated_img = __rotate_img_90_degree(source_img)
                 filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.chdir(save_path)
-                cv2.imwrite(filename_no_extension + '_rotate90c.' + save_extension, rotated_img)
+                if is_save_img:
+                    cv2.imwrite(filename_no_extension + '_rotate90c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate90c.npy', rotated_img)
     return True
 
 
 def rotate_img_90degree_and_save_to_folder_with_category(
-        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False):
+        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False, is_save_img=True):
     """
         rotate image 90 degree clockwise and save to folder
         :param source_path: source_path/category/image files
         :param save_path: save_path/rotated image files
         :param source_extension: image files' extension, default to 'png'
-    :param save_extension: rotated image's save extension, default to 'png'
+        :param save_extension: rotated image's save extension, default to 'png'
         :param is_save_npy: if to save npy files, default to False
+        :param is_save_img: if to save image files, default to True.
         :return: True
         """
     if not os.path.exists(source_path):
@@ -1180,19 +1195,21 @@ def rotate_img_90degree_and_save_to_folder_with_category(
     for category in os.scandir(source_path):
         if category.is_dir():
             rotate_img_90degree_and_save_to_folder(
-                category.path, os.path.join(save_path, category.name), source_extension, save_extension, is_save_npy)
+                category.path, os.path.join(save_path, category.name), source_extension, save_extension,
+                is_save_npy=is_save_npy, is_save_img=is_save_img)
     return True
 
 
 def rotate_img_180degree_and_save_to_folder(source_path, save_path, source_extension='png', save_extension='png',
-                                            is_save_npy=False):
+                                            is_save_npy=False, is_save_img=True):
     """
     rotate image 180 degree clockwise and save to folder
     :param source_path: source_path/image files
     :param save_path: save_path/rotated image files
     :param source_extension: image files' extension, default to 'png'
     :param save_extension: rotated image's save extension, default to 'png'
-    :param is_save_npy: if to save npy files, default to False
+    :param is_save_npy: if to save npy files, default to False.
+    :param is_save_img: if to save image files, default to True.
     :return: True
     """
     if not os.path.exists(source_path):
@@ -1212,21 +1229,23 @@ def rotate_img_180degree_and_save_to_folder(source_path, save_path, source_exten
                 rotated_img = __rotate_img_90_degree(rotated_img)
                 filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.chdir(save_path)
-                cv2.imwrite(filename_no_extension + '_rotate180c.' + save_extension, rotated_img)
+                if is_save_img:
+                    cv2.imwrite(filename_no_extension + '_rotate180c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate180c.npy', rotated_img)
     return True
 
 
 def rotate_img_180degree_and_save_to_folder_with_category(
-        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False):
+        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False, is_save_img=True):
     """
         rotate image 180 degree clockwise and save to folder
         :param source_path: source_path/category/image files
         :param save_path: save_path/rotated image files
         :param source_extension: image files' extension, default to 'png'
-    :param save_extension: rotated image's save extension, default to 'png'
+        :param save_extension: rotated image's save extension, default to 'png'
         :param is_save_npy: if to save npy files, default to False
+        :param is_save_img: if to save image files, default to True.
         :return: True
         """
     if not os.path.exists(source_path):
@@ -1234,12 +1253,13 @@ def rotate_img_180degree_and_save_to_folder_with_category(
     for category in os.scandir(source_path):
         if category.is_dir():
             rotate_img_180degree_and_save_to_folder(
-                category.path, os.path.join(save_path, category.name), source_extension, save_extension, is_save_npy)
+                category.path, os.path.join(save_path, category.name), source_extension, save_extension,
+                is_save_npy=is_save_npy, is_save_img=is_save_img)
     return True
 
 
 def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_extension='png',  save_extension='png',
-                                            is_save_npy=False):
+                                            is_save_npy=False, is_save_img=True):
     """
     rotate image 270 degree clockwise and save to folder
     :param source_path: source_path/image files
@@ -1247,6 +1267,7 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
     :param source_extension: image files' extension, default to 'png'
     :param save_extension: rotated image's save extension, default to 'png'
     :param is_save_npy: if to save npy files, default to False
+    :param is_save_img: if to save image files, default to True.
     :return: True
     """
     if not os.path.exists(source_path):
@@ -1267,21 +1288,23 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
                 rotated_img = __rotate_img_90_degree(rotated_img)
                 filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.chdir(save_path)
-                cv2.imwrite(filename_no_extension + '_rotate270c.' + save_extension, rotated_img)
+                if is_save_img:
+                    cv2.imwrite(filename_no_extension + '_rotate270c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate270c.npy', rotated_img)
     return True
 
 
 def rotate_img_270degree_and_save_to_folder_with_category(
-        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False):
+        source_path, save_path, source_extension='png',  save_extension='png', is_save_npy=False, is_save_img=True):
     """
         rotate image 270 degree clockwise and save to folder
         :param source_path: source_path/category/image files
         :param save_path: save_path/rotated image files
         :param source_extension: image files' extension, default to 'png'
-    :param save_extension: rotated image's save extension, default to 'png'
-        :param is_save_npy: if to save npy files, default to False
+        :param save_extension: rotated image's save extension, default to 'png'
+        :param is_save_npy: if to save npy files, default to False.
+        :param is_save_img: if to save image files, default to False.
         :return: True
         """
     if not os.path.exists(source_path):
@@ -1293,11 +1316,9 @@ def rotate_img_270degree_and_save_to_folder_with_category(
     return True
 
 # flip
-
-
 def __flip_img(img, mode=0):
     """
-    rotate image 90 degree clockwise
+    flip image
     :param img: image data
     :param mode: int
                  0: flip horizontally
@@ -1322,7 +1343,7 @@ def __flip_img(img, mode=0):
 
 def flip_img_and_save_to_folder(source_path, save_path, mode=0, source_extension='png', is_save_npy=False):
     """
-    rotate image 90 degree clockwise and save to folder
+    flip image and save to folder
     :param source_path: source_path/image files
     :param save_path: save_path/rotated image files
     :param mode: int 0: flip horizontally    1: flip vertically
@@ -1355,7 +1376,7 @@ def flip_img_and_save_to_folder(source_path, save_path, mode=0, source_extension
 def flip_img_and_save_to_folder_with_category(
         source_path, save_path, mode=0, source_extension='png', is_save_npy=False):
     """
-        rotate image 180 degree clockwise and save to folder
+        flip img and save to folder
         :param source_path: source_path/category/image files
         :param save_path: save_path/rotated image files
         :param mode: int 0: flip horizontally    1: flip vertically
@@ -1493,7 +1514,6 @@ def change_img_file_extension(source_path, save_path, ori_extension, new_extensi
 
 
 if __name__ == '__main__':
-
     pass
 
 
