@@ -287,8 +287,8 @@ def crop_imgs_and_save_smaller(source_path, save_path, crop_height: int, crop_wi
                 category.name), exist_ok=True)
             pbar = tqdm(os.scandir(category.path))
             for img_files in pbar:
-                extension = os.path.splitext(img_files.path)[1][1:]
-                if extension == extension:
+                this_extension = os.path.splitext(img_files.path)[1][1:]
+                if this_extension == extension:
                     pbar.set_description("Processing %s" % img_files.name)
                     img_data = cv2.imread(img_files.path, -1)
                     img_height = img_data.shape[0]
