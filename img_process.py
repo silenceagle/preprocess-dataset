@@ -1,4 +1,4 @@
-# preprocess oriage img
+# preprocess img
 # 20180916
 
 import os
@@ -24,7 +24,7 @@ def gen_destfolder(src_basepath: str, dst_basepath=' '):
 
 def img_gray_with_category(src_basepath: str, dst_basepath, src_category='all', min_Width=1, min_Heigh=1, ext=['png']):
     """
-        do graying to RGB image and save
+        do graying on RGB images and save them
         :param src_basepath: source_path/category/image files
         :param src_category: list of the names of imgs' categories, which are also the sub folders' name of src_basepath
                              Eg. ['a', 'b'], default to 'all', which means all sub folders will be processed
@@ -71,12 +71,12 @@ def img_gray_with_category(src_basepath: str, dst_basepath, src_category='all', 
     return True
 
 
-def img_gray(source_path: str, save_path, extension=['png']):
+def img_gray(source_path: str, save_path, extensions=['png']):
     """
-        do graying to RGB image and save
+        do graying on RGB image and save them
         :param source_path: folder's path that stores original RGB images files, struction source_path/images
         :param save_path: gray images save path
-        :param extension: the extension of the images to be grayed
+        :param extensions: the extension of the images to be grayed
         :return True
     """
     if not os.path.exists(source_path):
@@ -86,7 +86,7 @@ def img_gray(source_path: str, save_path, extension=['png']):
     for img_file in pbar:
         if img_file.is_file():
             extension = os.path.splitext(img_file.path)[1][1:]
-            if extension in extension:
+            if extension in extensions:
                 pbar.set_description("Processing %s" % img_file.name)
                 # gray img
                 tmp_img = cv2.imread(img_file.path, -1)
@@ -129,6 +129,10 @@ def get_and_save_amplitude_image_slc_with_category(source_path, save_path, sourc
                     pbar.set_description("Processing %s" % img_files.name)
                     tif = TIFF.open(img_files.path, mode='r')
                     source_img = tif.read_image()
+                    if source_img.shape[-1] != 4:
+                        print (f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
+                        continue
+                        # raise ValueError(f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
                     # 1st channel is the real part for VH
                     # 2st channel is the imaginary part for VH
                     # 3st channel is the real part for VV
@@ -175,6 +179,10 @@ def get_and_save_amplitude_image_grd_with_category(source_path, save_path, sourc
                     pbar.set_description("Processing %s" % img_files.name)
                     tif = TIFF.open(img_files.path, mode='r')
                     source_img = tif.read_image()
+                    if source_img.shape[-1] != 2:
+                        print (f"{img_files.path} has {source_img.shape[-1]} channels ! (not 2)")
+                        continue
+                        # raise ValueError(f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
                     # 1st channel is the amplitude value for VH
                     # 2st channel is the amplitude value for VV
                     # VH
@@ -1312,7 +1320,8 @@ def rotate_img_270degree_and_save_to_folder_with_category(
     for category in os.scandir(source_path):
         if category.is_dir():
             rotate_img_270degree_and_save_to_folder(
-                category.path, os.path.join(save_path, category.name), source_extension, save_extension, is_save_npy)
+                category.path, os.path.join(save_path, category.name), source_extension, save_extension, is_save_npy,
+            is_save_img)
     return True
 
 # flip
