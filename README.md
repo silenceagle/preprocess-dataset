@@ -37,7 +37,7 @@ normalize datapoint to unit length (L2 norm equals 1)
 
 ### *function* copy_npy_files_with_category
 
-## [img_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/img_process.py)
+## 4.[img_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/img_process.py)
 
 ### *function* img_gray_with_category
 ### *function* img_gray
@@ -81,10 +81,10 @@ normalize datapoint to unit length (L2 norm equals 1)
 ### *function* gen_dataset_img_size_statistic
 ### *function* change_img_file_extension
 
-## [npz_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/npz_process.py)
+## 5.[npz_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/npz_process.py)
 ### *function* npyz_print_data_shape
 
-## [xml_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/xml_process.py)
+## 6.[xml_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/xml_process.py)
 
 ### *function* pnpoly
 
