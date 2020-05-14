@@ -1167,11 +1167,13 @@ def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extens
         raise FileExistsError('path not found! : %s' % source_path)
     os.makedirs(save_path, exist_ok=True)
     pbar = tqdm(os.scandir(source_path))
+    root_path = os.getcwd()
     for img_files in pbar:
         if img_files.is_file():
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == source_extension:
                 pbar.set_description("Processing %s" % img_files.name)
+                os.chdir(root_path)
                 if extension == 'npy':
                     source_img = np.load(img_files.path)
                 else:
@@ -1183,6 +1185,7 @@ def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extens
                     cv2.imwrite(filename_no_extension + '_rotate90c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate90c.npy', rotated_img)
+    os.chdir(root_path)
     return True
 
 
@@ -1223,12 +1226,14 @@ def rotate_img_180degree_and_save_to_folder(source_path, save_path, source_exten
     if not os.path.exists(source_path):
         raise FileExistsError('path not found! : %s' % source_path)
     os.makedirs(save_path, exist_ok=True)
+    root_path = os.getcwd()
     pbar = tqdm(os.scandir(source_path))
     for img_files in pbar:
         if img_files.is_file():
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == source_extension:
                 pbar.set_description("Processing %s" % img_files.name)
+                os.chdir(root_path)
                 if extension == 'npy':
                     source_img = np.load(img_files.path)
                 else:
@@ -1241,6 +1246,7 @@ def rotate_img_180degree_and_save_to_folder(source_path, save_path, source_exten
                     cv2.imwrite(filename_no_extension + '_rotate180c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate180c.npy', rotated_img)
+    os.chdir(root_path)
     return True
 
 
@@ -1282,11 +1288,13 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
         raise FileExistsError('path not found! : %s' % source_path)
     os.makedirs(save_path, exist_ok=True)
     pbar = tqdm(os.scandir(source_path))
+    root_path = os.getcwd()
     for img_files in pbar:
         if img_files.is_file():
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == source_extension:
                 pbar.set_description("Processing %s" % img_files.name)
+                os.chdir(root_path)
                 if extension == 'npy':
                     source_img = np.load(img_files.path)
                 else:
@@ -1300,6 +1308,7 @@ def rotate_img_270degree_and_save_to_folder(source_path, save_path, source_exten
                     cv2.imwrite(filename_no_extension + '_rotate270c.' + save_extension, rotated_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_rotate270c.npy', rotated_img)
+    os.chdir(root_path)
     return True
 
 
@@ -1364,11 +1373,13 @@ def flip_img_and_save_to_folder(source_path, save_path, mode=0, source_extension
         raise FileExistsError('path not found! : %s' % source_path)
     os.makedirs(save_path, exist_ok=True)
     pbar = tqdm(os.scandir(source_path))
+    root_path = os.getcwd()
     for img_files in pbar:
         if img_files.is_file():
             extension = os.path.splitext(img_files.path)[1][1:]
             if extension == source_extension:
                 pbar.set_description("Processing %s" % img_files.name)
+                os.chdir(root_path)
                 if extension == 'npy':
                     source_img = np.load(img_files.path)
                 else:
@@ -1379,6 +1390,7 @@ def flip_img_and_save_to_folder(source_path, save_path, mode=0, source_extension
                 cv2.imwrite(filename_no_extension + '_flip.png', flip_img)
                 if is_save_npy:
                     np.save(filename_no_extension + '_flip.npy', flip_img)
+    os.chdir(root_path)
     return True
 
 
@@ -1498,8 +1510,8 @@ def change_img_file_extension(source_path, save_path, ori_extension, new_extensi
     change image files' extension, source_path/image files
     :param source_path: original images' path
     :param save_path: new images' save path
-    :param ori_extension: original images' file extension
-    :param new_extension: new extension
+    :param ori_extension: str, original images' file extension
+    :param new_extension: str, new extension
     :return: True
     """
     if not os.path.exists(source_path):
@@ -1513,6 +1525,7 @@ def change_img_file_extension(source_path, save_path, ori_extension, new_extensi
                 pbar.set_description("Processing %s" % img_files.name)
                 if extension == 'npy':
                     source_img = np.load(img_files.path)
+                    # source_img = cv2.normalize(source_img, None, 0, 255, cv2.NORM_MINMAX)
                 else:
                     source_img = cv2.imread(img_files.path, -1)
                 filename_no_extension, extension = os.path.splitext(img_files.name)
