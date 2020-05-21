@@ -90,7 +90,11 @@ normalize datapoint to unit length (L2 norm equals 1)
 
 ### *function* gen_dataset_ssdd
 
-### *function* gen_dataset_hrsc2016
+### *function* gen_dataset_hrsc2016  
+
+### *function* rename_and_save_opensarship   
+
+### *function* gen_dataset_ship_dataset     
 
 
 
