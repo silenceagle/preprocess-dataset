@@ -467,14 +467,5 @@ def gen_dataset_ship_dataset(source_path):
 
 
 if __name__ == '__main__':
-    # gen_dataset_ssdd(xml_path=r'F:\dataset_se\SSDD\Annotations',
-    #                  source_img_path=r'F:\dataset_se\SSDD\JPEGImages',
-    #                  save_img_path=r'F:\dataset_se\SSDD\crop_img')
-    # gen_dataset_hrsc2016(xml_path=r'C:\files\HRSC2016\HRSC2016\FullDataSet\Annotations',
-    #                      source_img_path=r'C:\files\HRSC2016\HRSC2016',
-    #                      save_img_path=r'C:\files\HRSC2016')
-    # rename_and_save_opensarship(source_path=r'C:\files\OpenSARShip_total',
-    #                             save_path=r'C:\files\OpenSARShip')
-    gen_dataset_ship_dataset(source_path=r'C:\files\game-of-deep-learning-ship-datasets')
-pass
+    pass
 
