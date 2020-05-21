@@ -8,7 +8,8 @@ import os
 from tqdm import tqdm
 import cv2
 import numpy as np
-
+import shutil
+import csv
 
 def pnpoly(test_point, polygon):
     """
@@ -85,7 +86,7 @@ def gen_dataset_ssdd(xml_path, source_img_path, save_img_path):
                         sub_imagename = img_name+'_'+str(xmin)+'_'+str(ymin)+'_'+str(xmax)+'_'+str(ymax)+'.png'
                         cv2.imwrite(os.path.join(save_img_path, sub_imagename), sub_image[:, :, 0])
 
-                        
+
 def gen_dataset_hrsc2016(xml_path, source_img_path, save_img_path):
     """
     crop ship images from original bigger images and save them to folders named with their categories and keep the train
@@ -329,11 +330,151 @@ def gen_dataset_hrsc2016(xml_path, source_img_path, save_img_path):
                         cv2.imwrite(os.path.join(ship_save_folder, sub_imagename), sub_image)
                 except:  #
                     print(f'''could not find {os.path.join(xml_path, test_img_name + '.xml')}''')
+                    
+
+def get_ship_type_given_ais_type_number(ship_type_number):
+    """
+    return the ship type name according to the given ship type number in AIS information
+    :param ship_type_number: int, [20, 99]
+    :return: str, ship type name
+    """
+    assert ship_type_number >= 20 and ship_type_number <= 99
+    if ship_type_number <= 29:
+        return 'Wing in ground'
+    elif ship_type_number <= 30:
+        return 'Fishing'
+    elif ship_type_number <= 32:
+        return 'Towing'
+    elif ship_type_number <= 33:
+        return 'Dredging or underwater ops'
+    elif ship_type_number <= 34:
+        return 'Diving ops'
+    elif ship_type_number <= 35:
+        return 'Military Ops'
+    elif ship_type_number <= 36:
+        return 'Sailing'
+    elif ship_type_number <= 37:
+        return 'Pleasure Craft'
+    elif ship_type_number <= 39:
+        return 'Reserved'
+    elif ship_type_number <= 49:
+        return 'High speed craft'
+    elif ship_type_number <= 50:
+        return 'Pilot Vessel'
+    elif ship_type_number <= 51:
+        return 'Search and Rescue vessel'
+    elif ship_type_number <= 52:
+        return 'Tug'
+    elif ship_type_number <= 53:
+        return 'Port Tender'
+    elif ship_type_number <= 54:
+        return 'Anti-pollution equipment'
+    elif ship_type_number <= 55:
+        return 'Law Enforcement'
+    elif ship_type_number <= 57:
+        return 'Spare'
+    elif ship_type_number <= 58:
+        return 'Medical Transport'
+    elif ship_type_number <= 59:
+        return 'Ship according to RR Resolution No. 18'
+    elif ship_type_number <= 69:
+        return 'Passenger'
+    elif ship_type_number <= 79:
+        return 'Cargo'
+    elif ship_type_number <= 89:
+        return 'Tanker'
+    elif ship_type_number <= 99:
+        return 'Other Type'
+
+
+def rename_and_save_opensarship(source_path, save_path):
+    """
+    rename the tif images in 'Patch' to '{TYPE}_{AIS TYPE NUMBER}_{MARINE TRAFFIC TYPE}_ort_{}_{}_x_{}_y{}.tif'
+            original ship type|AIS information|Marine traffic information|orientation sar and AIS|center  x and y
+    and save them to a new folder structed by save_path/Cargo/sub type folders/ ship images
+                                                             /Cargo images
+                                                       /...
+    :param source_path: str, original data root path, the structure should be source_path/subfolder/Patch/tif files
+                                                                                                   /Ship.xml
+    :param save_path: str
+    :return:
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    for sub_folder in pbar:
+        if sub_folder.is_dir():
+            pbar.set_description("Processing %s" % sub_folder.path)
+            # GRDH or SLC
+            sar_mode = sub_folder.name.split('_')[2]
+            document = xml.dom.minidom.parse(os.path.join(sub_folder.path, 'Ship.xml'))
+            ships = document.getElementsByTagName('ShipList')[0].getElementsByTagName('ship')
+            for ship in ships:
+                ship_information = ship.getElementsByTagName('SARShipInformation')[0]
+                ship_cx = int(ship_information.getElementsByTagName('Center_x')[0].firstChild.data)
+                ship_cy = int(ship_information.getElementsByTagName('Center_y')[0].firstChild.data)
+                print(f'cx: {ship_cx}\tcy: {ship_cy}')
+                ship_orientation_degree_sar = float(
+                    ship_information.getElementsByTagName('North_Direction')[0].firstChild.data)
+                ship_orientation_sar = ship_orientation_degree_sar / 180.0 * np.pi
+                ship_ais_information = ship.getElementsByTagName('AISShipInformation')[0]
+                ship_orientation_degree_ais = float(
+                    ship_ais_information.getElementsByTagName('True_Head')[0].firstChild.data)
+                ship_orientation_ais = ship_orientation_degree_ais / 180.0 * np.pi
+                ship_type_number_ais = int(
+                    ship_ais_information.getElementsByTagName('Ship_Type')[0].firstChild.data)
+                print(f'AIS Ship Type Number: {ship_type_number_ais}')
+                try:
+                    ship_type_ais = get_ship_type_given_ais_type_number(ship_type_number_ais)
+                    if 'Search and Rescue vessel' == ship_type_ais:
+                        ship_type_ais = 'Search'
+                    elif 'Dredging or underwater ops' == ship_type_ais:
+                        ship_type_ais = 'Dredging'
+                except AssertionError:  # no ship type AIS information
+                    ship_type_ais = 'Other Type'
+                print(f'AIS Ship Type: {ship_type_ais}')
+                ship_marine_traffic_information = ship.getElementsByTagName('MarineTrafficInformation')[0]
+                ship_type_traffic = \
+                    ship_marine_traffic_information.getElementsByTagName('Elaborated_type')[0].firstChild.data.replace('/', 'or')
+                # original ship name TYPE_x{}_y{}.tif
+                ori_img_name = f'{ship_type_ais}_x{ship_cx}_y{ship_cy}.tif'
+                # new name {TYPE}_{AIS TYPE NUMBER}_{MARINE TRAFFIC TYPE}_ort_{sar}_{ais}_x_{}_y{}.tif
+                new_name = f'{ship_type_ais}_{ship_type_number_ais}_{ship_type_traffic}_ort_' \
+                           f'{ship_orientation_sar:.3f}_{ship_orientation_ais:.3f}_' \
+                           f'x_{ship_cx}_y_{ship_cy}.tif'
+                if ship_type_traffic == ship_type_ais:
+                    ship_save_path = os.path.join(save_path, sar_mode, ship_type_ais)
+                else:
+                    ship_save_path = os.path.join(save_path, sar_mode, ship_type_ais, ship_type_traffic)
+                os.makedirs(ship_save_path, exist_ok=True)
+                try:
+                    shutil.move(os.path.join(sub_folder.path, 'Patch', ori_img_name),
+                            os.path.join(ship_save_path, new_name))
+                except OSError:
+                    print(f'''can not open {os.path.join(sub_folder.path, 'Patch', ori_img_name)}''')
+                pass
+
+
+def gen_dataset_ship_dataset(source_path):
+    ship_types = ['Cargo', 'Military', 'Carrier', 'Cruise', 'Tankers']
+    for ship_type in ship_types:
+        os.makedirs(os.path.join(source_path, 'train', 'images', ship_type), exist_ok=True)
+    with open(os.path.join(source_path, 'train', 'train.csv')) as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            shutil.move(os.path.join(source_path, 'train', 'images', row['image']),
+                        os.path.join(source_path, 'train', 'images', ship_types[int(row['category'])-1], row['image']))
 
 
 if __name__ == '__main__':
-    gen_dataset_ssdd(xml_path=r'F:\dataset_se\SSDD\Annotations',
-                     source_img_path=r'F:\dataset_se\SSDD\JPEGImages',
-                     save_img_path=r'F:\dataset_se\SSDD\crop_img')
-    pass
+    # gen_dataset_ssdd(xml_path=r'F:\dataset_se\SSDD\Annotations',
+    #                  source_img_path=r'F:\dataset_se\SSDD\JPEGImages',
+    #                  save_img_path=r'F:\dataset_se\SSDD\crop_img')
+    # gen_dataset_hrsc2016(xml_path=r'C:\files\HRSC2016\HRSC2016\FullDataSet\Annotations',
+    #                      source_img_path=r'C:\files\HRSC2016\HRSC2016',
+    #                      save_img_path=r'C:\files\HRSC2016')
+    # rename_and_save_opensarship(source_path=r'C:\files\OpenSARShip_total',
+    #                             save_path=r'C:\files\OpenSARShip')
+    gen_dataset_ship_dataset(source_path=r'C:\files\game-of-deep-learning-ship-datasets')
+pass
 
