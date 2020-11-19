@@ -209,6 +209,7 @@ def generate_dataset_singlesize_with_category(
     and save them in a .npz file, with variable named 'x', 'y'
     :param source_path: the store path of source images
     :param save_path: the path to save .npz file
+    :param npz_file_name: str, the npz file name to be saved, end with '.npz'
     :param file_extension: the image files' extension, default to 'png', also support 'npy'
     :param include_category: the category or the sub folder's name to be used, default to 'all', which means all
             categories will be used. To chose specific categories, use ['ca_1', 'ca_2'] etc.
@@ -229,7 +230,7 @@ def generate_dataset_singlesize_with_category(
     dataset_x = []
     dataset_y = []
     index_category = 0
-    is_first = True
+
     is_first_total = True
     for category in os.scandir(source_path):
         if category.is_dir():
@@ -239,8 +240,10 @@ def generate_dataset_singlesize_with_category(
             index_category += 1
             number_of_images = 0
             category_name.append(category.name)
+            is_first = True
             for img_file in os.scandir(category.path):
                 extension = os.path.splitext(img_file.path)[1][1:]
+                print(f'processing {img_file.path}')
                 if extension == file_extension:
                     number_of_images += 1
                     if extension == 'npy':
@@ -254,18 +257,18 @@ def generate_dataset_singlesize_with_category(
                         this_dataset_x = np.append(this_dataset_x,
                                                    np.reshape(temp_img, [1, -1]),
                                                    axis=0)
-            is_first = True
-            this_dataset_y = np.zeros([number_of_images, number_of_categories],
-                                      dtype=np.int32)
-            this_dataset_y[:, index_category-1] = 1
-            number_of_image_per_category[index_category-1] = number_of_images
-            if is_first_total:
-                dataset_x = this_dataset_x
-                dataset_y = this_dataset_y
-                is_first_total = False
-            else:
-                dataset_x = np.append(dataset_x, this_dataset_x, axis=0)
-                dataset_y = np.append(dataset_y, this_dataset_y, axis=0)
+            if number_of_images > 0:
+                this_dataset_y = np.zeros([number_of_images, number_of_categories],
+                                          dtype=np.int32)
+                this_dataset_y[:, index_category-1] = 1
+                number_of_image_per_category[index_category-1] = number_of_images
+                if is_first_total:
+                    dataset_x = this_dataset_x
+                    dataset_y = this_dataset_y
+                    is_first_total = False
+                else:
+                    dataset_x = np.append(dataset_x, this_dataset_x, axis=0)
+                    dataset_y = np.append(dataset_y, this_dataset_y, axis=0)
     if is_save_npz:
         np.savez(os.path.join(save_path, npz_file_name), x=dataset_x, y=dataset_y)
     return dataset_x, dataset_y, category_name
@@ -300,7 +303,9 @@ def generate_dataset_singlesize_no_label(
                 is_first = False
             else:
                 dataset_x = np.append(dataset_x, np.reshape(temp_img, [1, -1]), axis=0)
-    np.save(os.path.join(save_path, npy_file_name), dataset_x)
+    if npy_file_name is not None:
+        os.makedirs(save_path, exist_ok=True)
+        np.save(os.path.join(save_path, npy_file_name), dataset_x)
     return dataset_x
 
 
@@ -570,7 +575,7 @@ def copy_npy_files_with_category(source_path, save_path):
 # multisize
 def random_perm3(data_x, data_y, data_z):
     """
-        do random perm on x, y and z, x and z are list object, y is ndarray object
+        do random permutation on x, y and z, x and z are list object, y is ndarray object
         :param data_x: x data, list object
         :param data_y: label data, ndarray object
         :param data_z: x data size, list object
@@ -662,9 +667,3 @@ def generate_dataset_multisize(source_path, number_category, this_category_index
     dataset_y[:, this_category_index] = 1
     # print(len(dataset_x))
     return dataset_x, dataset_y, dataset_x_shape
-
-
-if __name__ == '__main__':
-    pass
-
-
