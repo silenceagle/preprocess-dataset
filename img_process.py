@@ -108,101 +108,6 @@ def img_gray(source_path: str, save_path, extensions=['png']):
     return True
 
 
-def get_and_save_amplitude_image_slc_with_category(source_path, save_path, source_extension='tif'):
-    """
-    get the amplitude images of OpenSARShip SLC mode images and save .png images and the .npy files
-    :param source_path: source images' root ptah, source_path/category/image files
-    :param save_path: the path to save processed images
-    :param source_extension: source image files' extension, default to 'tif'
-    :return: True
-    """
-    if not os.path.exists(source_path):
-        raise FileExistsError('path not found! : %s' % source_path)
-    for category in os.scandir(source_path):
-        if category.is_dir():
-            os.makedirs(os.path.join(save_path, 'VH', category.name), exist_ok=True)
-            os.makedirs(os.path.join(save_path, 'VV', category.name), exist_ok=True)
-            pbar = tqdm(os.scandir(category.path))
-            for img_files in pbar:
-                extension = os.path.splitext(img_files.path)[1][1:]
-                if extension == source_extension:
-                    pbar.set_description("Processing %s" % img_files.name)
-                    tif = TIFF.open(img_files.path, mode='r')
-                    source_img = tif.read_image()
-                    if source_img.shape[-1] != 4:
-                        print (f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
-                        continue
-                        # raise ValueError(f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
-                    # 1st channel is the real part for VH
-                    # 2st channel is the imaginary part for VH
-                    # 3st channel is the real part for VV
-                    # 4st channel is the imaginary part for VV
-                    # to get the amplitude value of VH and VV
-                    # VH
-                    img_amplitude_VH = np.sqrt(np.square(source_img[:, :, 0]) + np.square(source_img[:, :, 1]))
-                    img_amplitude_VH = np.reshape(img_amplitude_VH, [img_amplitude_VH.shape[0],
-                                                                     img_amplitude_VH.shape[1]])
-                    filename_no_extension, _ = os.path.splitext(img_files.name)
-                    cv2.imwrite(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.png'),
-                                img_amplitude_VH)
-                    np.save(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.npy'),
-                            img_amplitude_VH)
-                    # VV
-                    img_amplitude_VV = np.sqrt(np.square(source_img[:, :, 2]) + np.square(source_img[:, :, 3]))
-                    img_amplitude_VV = np.reshape(img_amplitude_VV, [img_amplitude_VV.shape[0],
-                                                                     img_amplitude_VV.shape[1]])
-                    cv2.imwrite(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.png'),
-                                img_amplitude_VV)
-                    np.save(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.npy'),
-                            img_amplitude_VV)
-    return True
-
-
-def get_and_save_amplitude_image_grd_with_category(source_path, save_path, source_extension='tif'):
-    """
-    get the amplitude images of OpenSARShip GRD mode images and save .png images and the .npy files
-    :param source_path: source images' root ptah, source_path/category/image files
-    :param save_path: the path to save processed images
-    :param source_extension: source image files' extension, default to 'tif'
-    :return: True
-    """
-    if not os.path.exists(source_path):
-        raise FileExistsError('path not found! : %s' % source_path)
-    for category in os.scandir(source_path):
-        if category.is_dir():
-            os.makedirs(os.path.join(save_path, 'VH', category.name), exist_ok=True)
-            os.makedirs(os.path.join(save_path, 'VV', category.name), exist_ok=True)
-            pbar = tqdm(os.scandir(category.path))
-            for img_files in pbar:
-                extension = os.path.splitext(img_files.path)[1][1:]
-                if extension == source_extension:
-                    pbar.set_description("Processing %s" % img_files.name)
-                    tif = TIFF.open(img_files.path, mode='r')
-                    source_img = tif.read_image()
-                    if source_img.shape[-1] != 2:
-                        print (f"{img_files.path} has {source_img.shape[-1]} channels ! (not 2)")
-                        continue
-                        # raise ValueError(f"{img_files.path} has {source_img.shape[-1]} channels ! (not 4)")
-                    # 1st channel is the amplitude value for VH
-                    # 2st channel is the amplitude value for VV
-                    # VH
-                    img_amplitude_VH = np.reshape(source_img[:, :, 0], [source_img.shape[0],
-                                                                        source_img.shape[1]])
-                    filename_no_extension, _ = os.path.splitext(img_files.name)
-                    cv2.imwrite(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.png'),
-                                img_amplitude_VH)
-                    np.save(os.path.join(save_path, 'VH', category.name, filename_no_extension+'_VH.npy'),
-                            img_amplitude_VH)
-                    # VV
-                    img_amplitude_VV = np.reshape(source_img[:, :, 1], [source_img.shape[0],
-                                                                        source_img.shape[1]])
-                    cv2.imwrite(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.png'),
-                                img_amplitude_VV)
-                    np.save(os.path.join(save_path, 'VV', category.name, filename_no_extension + '_VV.npy'),
-                            img_amplitude_VV)
-    return True
-
-
 def gen_npy_file(source_path, save_path, npy_file_name, img_extension='png'):
     """
     concat images data with only one channel in soruce path and generate npy file
@@ -414,10 +319,11 @@ def padding_images_with_zero(
                 else:
                     img_data = cv2.imread(img_files.path, -1)
                 is_valid, out_img, _ = __matrix_padding_multi_size_soft(img_data, out_size=out_size)
+                img_filename, _ = os.path.splitext(img_files.name)
                 if is_valid:
-                    cv2.imwrite(os.path.join(save_path, img_files.name.split('.')[0]+'.png'), out_img)
+                    cv2.imwrite(os.path.join(save_path, img_filename+'.png'), out_img)
                     if is_save_npy:
-                        np.save(os.path.join(save_path, img_files.name.split('.')[0]+'.npy'), out_img)
+                        np.save(os.path.join(save_path, img_filename+'.npy'), out_img)
 
 
 def padding_images_with_zero_with_category(
@@ -428,7 +334,7 @@ def padding_images_with_zero_with_category(
     Eg. when the out_size is [[32, 32], [64, 64]]
         if the original size is [h<=32, w<=32], then final size is [32, 32]
                         [h<=64, 32<w<=64] or [32<h<=64, w<=64]   -->  [64, 64]
-                            [h>64, w] or [h, w>64]               -->  will not be processed sand saved
+                            [h>64, w] or [h, w>64]               -->  will not be processed and saved
     :param source_path: the original images' path, source path/category/image files
     :param save_path: the output images' save path
     :param out_size: the output image size, Eg. [[32, 32], [64, 64], ...]
@@ -472,6 +378,27 @@ def padding_images_with_zero_to_square_size(source_path, save_path, image_extens
                                                                          np.max(img_data.shape)])  # suppose c<= w or h
                 if is_valid:
                     cv2.imwrite(os.path.join(save_path, img_files.name), out_img)
+
+
+def padding_images_with_zero_to_square_size_with_category(source_path, save_path, image_extension='png'):
+    """
+    padding images with zeros to get squared images, the output image's size is determined by it's larger side:
+    [out_h, out_w] = [max(w, h), max(w, h)]
+    :param source_path: the original images' path, source path/category/image files
+    :param save_path: the output images' save path
+    :param image_extension: image file's extension, default to 'png', also support 'npy'
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    os.makedirs(save_path, exist_ok=True)
+    for category in os.scandir(source_path):
+        if category.is_dir():
+            padding_images_with_zero_to_square_size(
+                source_path=category.path,
+                save_path=os.path.join(save_path, category.name),
+                image_extension=image_extension
+            )
 
 
 def __matrix_padding_multi_size_soft(src_mat, out_size=[[64, 64], [128, 128]], dtype=np.float32):
@@ -960,7 +887,49 @@ def sample_with_slide_window_and_save_npy_stride(source_path, slide_height, slid
     return True
 
 
+def sample_with_slide_window_and_save_npy_given_image(
+        img_path, save_path, slide_height, slide_width, stride=[1, 1]):
+    """
+    crop images of given size from original image and save them to save_path
+    :param img_path: str, the original image file path
+    :param save_path: str, the directory to save croped images
+    :param slide_height: int, the height of cropped image
+    :param slide_width: int, the width of cropped image
+    :param stride: int, the step size between two cropped images in horizontal or vertical direction
+    :return: True
+    """
+    ori_img = cv2.imread(img_path, -1)
+    os.makedirs(save_path, exist_ok=True)
+    crop_img = __sample_img_with_slide_windows(ori_img, slide_height, slide_width, stride=stride)
+    for i in range(1, crop_img.shape[0]+1):
+        cv2.imwrite(
+            os.path.join(save_path, img_path.split(os.sep)[-1].split('.')[0]+f'_{i}.png'),
+            np.reshape(crop_img[i-1], [slide_height, slide_width]))
+
+
+
 # resize
+
+def resize_img_mat(img_mat, ori_height, ori_widhth, new_height, new_width):
+    """
+    resize each image in img_mat to size [new_height, new_width].
+    :param img_mat: ndarray, each row store one image vector of length ori_height*ori_width
+    :param ori_height: int, the height of each image in img_mat
+    :param ori_widhth: int, the width of each image in img_mat
+    :param new_height: int, the new height of each image in img_mat
+    :param new_width: int, the new width of each image in img_mat
+    :return: resize_mat
+    """
+    assert (ori_height * ori_widhth == img_mat.shape[1])
+    for ind in range(img_mat.shape[0]):
+        new_img = np.reshape(
+            cv2.resize(np.reshape(img_mat[ind], [ori_height, ori_widhth]), (new_width, new_height)),
+            [1, -1])
+        if not ind:
+            resize_mat = new_img
+        else:
+            resize_mat = np.concatenate([resize_mat, new_img], axis=0)
+    return resize_mat
 
 
 def resize_img_and_save_to_folder_opensarship_slc_with_category(
@@ -1087,44 +1056,52 @@ def resize_img_and_save_to_folder_with_category(
     if not os.path.exists(source_path):
         raise FileExistsError('path not found! : %s' % source_path)
     for category in os.scandir(source_path):
+        root_path = os.getcwd()
         if category.is_dir():
             pbar = tqdm(os.scandir(category.path))
             for img_files in pbar:
                 if img_files.is_file():
                     extension = os.path.splitext(img_files.path)[1][1:]
                     if extension == source_extension:
+                        os.chdir(root_path)
                         pbar.set_description("Processing %s" % img_files.name)
                         if extension == 'npy':
                             source_img = np.load(img_files.path)
                         else:
                             source_img = cv2.imread(img_files.path, -1)
-                        if source_img.shape[0] < img_smallest or source_img.shape[1] < img_smallest:
-                            continue
-                        if len(source_img.shape) == 3:
-                            # 3 channels :RGB
-                            if is_do_gray:
-                                # gray = 0.39 * R + 0.5 * G + 0.11 * B
-                                img_gray = 0.39 * source_img[:, :, 0] + 0.5 * source_img[:, :, 1] + 0.11 * source_img[:,
-                                                                                                           :, 2]
-                                # image = misc.toimage(img_gray)
-                                # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
-                                im_resize = cv2.resize(img_gray, (new_size[1], new_size[0]))
-                            else:
+                        try:
+                            if source_img.shape[0] < img_smallest or source_img.shape[1] < img_smallest:
+                                continue
+                            if len(source_img.shape) == 3:
+                                # 3 channels :RGB
+                                if is_do_gray:
+                                    # gray = 0.39 * R + 0.5 * G + 0.11 * B
+                                    img_gray = 0.39 * source_img[:, :, 0] + 0.5 * source_img[:, :, 1] + 0.11 * source_img[:,
+                                                                                                               :, 2]
+                                    # image = misc.toimage(img_gray)
+                                    # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
+                                    im_resize = cv2.resize(img_gray, (new_size[1], new_size[0]))
+                                else:
+                                    # image = misc.toimage(source_img)
+                                    # im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                                    im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
+                            elif len(source_img.shape) == 2:
                                 # image = misc.toimage(source_img)
-                                # im_resize = misc.imresize(image, (new_size[0], new_size[1], source_img.shape[2]))
+                                # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
                                 im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
-                        elif len(source_img.shape) == 2:
-                            # image = misc.toimage(source_img)
-                            # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
-                            im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
-                        filename_no_extension, extension = os.path.splitext(img_files.name)
-                        os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
-                        os.chdir(os.path.join(save_path, category.name))
-                        # misc.imsave(filename_no_extension+'.png', im_resize)
-                        if is_save_img:
-                            cv2.imwrite(filename_no_extension + '.png', im_resize)
-                        if is_save_npy:
-                            np.save(filename_no_extension + '.npy', im_resize)
+                            filename_no_extension, extension = os.path.splitext(img_files.name)
+                            os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
+                            os.chdir(os.path.join(save_path, category.name))
+                            # misc.imsave(filename_no_extension+'.png', im_resize)
+                            if is_save_img:
+                                cv2.imwrite(filename_no_extension + '.png', im_resize)
+                            if is_save_npy:
+                                np.save(filename_no_extension + '.npy', im_resize)
+                        except Exception as e:
+                            print(f'eoror: {str(e)}')
+
+
+        os.chdir(root_path)
     return True
 
 
@@ -1133,7 +1110,7 @@ def resize_img_and_save_to_folder_with_category(
 
 def __rotate_img_90_degree(img):
     """
-    rotate image 90 degree clockwise
+    rotate image 90 degree clockwise clockwisely
     :param img: image data
     :return: rotated image data
     """
@@ -1149,6 +1126,36 @@ def __rotate_img_90_degree(img):
     for ind_row in range(img_height):
         rotated_img[:, img_height - ind_row - 1] = img[ind_row]
     return rotated_img
+
+
+def rotate_imgs(img_mat, degree, img_width, img_height, img_channel):
+    """
+    rotate images 90, 180 or 270 degree clockwisely
+    :param img_mat: ndarray, each row contain one image with length equal to img_width*img_height*img_channel
+    :param degree: int, the degree to rotate
+    :param img_width: int, the width of each image in img_mat
+    :param img_height: int, the height of each image in img_mat
+    :param img_channel: int, the number of channels of each image in img_mat, for example, rgb image is 3.
+    :return: img_rot, each row is the rotated image of original image
+    """
+    if degree != 90 and degree !=180 and degree != 270:
+        raise ValueError(f'only support rotate 90, 180 or 270 degree, not {degree}')
+    if img_height*img_width*img_channel != img_mat.shape[1]:
+        raise ValueError(f'invalid image size: {img_height}*{img_width}*{img_channel} != {img_mat.shape[1]}')
+    rot_times = degree // 90
+    for ind in range(img_mat.shape[0]):
+        if img_channel == 1:
+            this_img = np.reshape(img_mat[ind], [img_height, img_width])
+        else:
+            this_img = np.reshape(img_mat[ind], [img_height, img_width, img_channel])
+        for time in range(rot_times):
+            this_img = __rotate_img_90_degree(this_img)
+        this_img = np.reshape(this_img, [1, -1])
+        if ind:
+            img_rot = np.concatenate([img_rot, this_img], axis=0)
+        else:
+            img_rot = this_img
+    return img_rot
 
 
 def rotate_img_90degree_and_save_to_folder(source_path, save_path, source_extension='png',  save_extension='png',
@@ -1359,6 +1366,34 @@ def __flip_img(img, mode=0):
     return flip_img
 
 
+def flip_imgs(img_mat, img_height, img_width, img_channel, mode=0):
+    """
+    flip images
+    :param img_mat: ndarray, each row contain one image with length equal to img_width*img_height*img_channel
+    :param mode: int
+                 0: flip horizontally
+                 1: flip vertically
+    :param img_height: int, the width of each image in img_mat
+    :param img_width: int, the height of each image in img_mat
+    :param img_channel:int, the number of channels of each image in img_mat, for example, rgb image is 3.
+    :return: img_flip, each row is the flipped image of original image
+    """
+    if img_height * img_width * img_channel != img_mat.shape[1]:
+        raise ValueError(f'invalid image size: {img_height}*{img_width}*{img_channel} != {img_mat.shape[1]}')
+    for ind in range(img_mat.shape[0]):
+        if img_channel == 1:
+            this_img = np.reshape(img_mat[ind], [img_height, img_width])
+        else:
+            this_img = np.reshape(img_mat[ind], [img_height, img_width, img_channel])
+        this_img = __flip_img(this_img, mode=mode)
+        this_img = np.reshape(this_img, [1, -1])
+        if ind:
+            img_flip = np.concatenate([img_flip, this_img], axis=0)
+        else:
+            img_flip = this_img
+    return img_flip
+
+
 def flip_img_and_save_to_folder(source_path, save_path, mode=0, source_extension='png', is_save_npy=False):
     """
     flip image and save to folder
@@ -1482,6 +1517,7 @@ def gen_dataset_img_size_statistic(source_path, source_extension):
                         break
                 size_statistic[ind_h+1, ind_w+1] += 1
     is_first = True
+    size_list = None
     for ind_h in range(1, size_statistic.shape[0]):
         for ind_w in range(1, size_statistic.shape[1]):
             if size_statistic[ind_h, ind_w]:
@@ -1499,10 +1535,55 @@ def gen_dataset_img_size_statistic(source_path, source_extension):
                                           axis=0)
     # print(img_height_list)
     # print(img_width_list)
-    print(size_statistic)
-    print('\n')
-    print(size_list)
+    # print(size_statistic)
+    # print('\n')
+    # print(size_list)
     return size_statistic, size_list
+
+
+def merge_size_list(size_list1, size_list2):
+    """
+    merge tow size_list return by function gen_dataset_img_size_statistic by adding the number of images with same size
+    :param size_list1: ndarray, each row is [height, width, number]
+    :param size_list2: ndarray, each row is [height, width, number]
+    :return: merged_size_list
+    """
+    is_first = True
+    merged_ind_1 = []
+    merged_ind_2 = []
+    for ind_1 in range(size_list1.shape[0]):
+        for ind_2 in range(size_list2.shape[0]):
+            if size_list1[ind_1, 0] == size_list2[ind_2, 0] and size_list1[ind_1, 1] == size_list2[ind_2, 1] and\
+                    ind_1 not in merged_ind_1 and ind_2 not in merged_ind_2:
+                merged_ind_1.append(ind_1)
+                merged_ind_2.append(ind_2)
+                if is_first:
+                    merged_size_list = np.array([[
+                        size_list1[ind_1, 0],
+                        size_list1[ind_1, 1],
+                        size_list1[ind_1, 2]+size_list2[ind_2, 2]
+                    ]])
+                    is_first = False
+                else:
+                    merged_size_list = np.append(merged_size_list,
+                                          np.array([[
+                                              size_list1[ind_1, 0],
+                                              size_list1[ind_1, 1],
+                                              size_list1[ind_1, 2] + size_list2[ind_2, 2]
+                                          ]]),
+                                          axis=0)
+    if is_first: # no common size
+        merged_size_list = np.concatenate([size_list1, size_list2], axis=0)
+    else:
+        # unique_ind_1 = np.array(set(range(size_list1.shape[0])) - set(merged_ind_1))
+        unique_ind_1 = np.setxor1d(range(size_list1.shape[0]), merged_ind_1)
+        # unique_ind_2 = np.array(set(range(size_list1.shape[0])) - set(merged_ind_1))
+        unique_ind_2 = np.setxor1d(range(size_list2.shape[0]), merged_ind_2)
+        merged_size_list = np.concatenate([merged_size_list,
+                                           np.reshape(size_list1[unique_ind_1], [-1, 3]),
+                                           np.reshape(size_list2[unique_ind_2], [-1, 3])],
+                                          axis=0)
+    return merged_size_list
 
 
 def change_img_file_extension(source_path, save_path, ori_extension, new_extension):
@@ -1531,11 +1612,4 @@ def change_img_file_extension(source_path, save_path, ori_extension, new_extensi
                 filename_no_extension, extension = os.path.splitext(img_files.name)
                 os.chdir(save_path)
                 cv2.imwrite(filename_no_extension+'.'+new_extension, source_img)
-
-
-
-
-if __name__ == '__main__':
-    pass
-
 
