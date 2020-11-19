@@ -57,11 +57,13 @@ normalize datapoint to unit length (L2 norm equals 1)
 ### *function* padding_images_with_zero
 ### *function* padding_images_with_zero_with_category
 ### *function* padding_images_with_zero_to_square_size
+### *function* padding_images_with_zero_to_square_size_with_category
 ### *function* padding_to_fix_sized_and_save_imgs_with_category
 
 ### *function* \_\_sample_img_with_slide_windows
 ### *function* sample_img_with_slide_window_and_save_npy_with_category
 ### *function* sample_with_slide_window_and_save_npy_stride
+### *function* sample_with_slide_window_and_save_npy_given_image
 
 ### *function* resize_img_and_save_to_folder_opensarship_slc_with_category
 ### *function* resize_img_and_save_to_folder
@@ -74,11 +76,15 @@ normalize datapoint to unit length (L2 norm equals 1)
 ### *function* rotate_img_180degree_and_save_to_folder_with_category
 ### *function* rotate_img_270degree_and_save_to_folder
 ### *function* rotate_img_270degree_and_save_to_folder_with_category
+### *function* rotate_imgs
 
 ### *function* \_\_flip_img
 ### *function* flip_img_and_save_to_folder
 ### *function* flip_img_and_save_to_folder_with_category
+### *function* flip_imgs
+
 ### *function* gen_dataset_img_size_statistic
+### *function* merge_size_list
 ### *function* change_img_file_extension
 
 ## 5.[npz_process.py](https://github.com/silenceagle/preprocess-dataset/blob/master/npz_process.py)
