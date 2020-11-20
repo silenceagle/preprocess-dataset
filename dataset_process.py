@@ -4,15 +4,11 @@
     20181108
 """
 
-
-import tensorflow as tf
 import numpy as np
-import time
 import os
 from libtiff import TIFF
 import shutil
 from tqdm import tqdm
-import logging
 import cv2
 
 
