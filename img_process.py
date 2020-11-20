@@ -1059,6 +1059,7 @@ def resize_img_and_save_to_folder_with_category(
         root_path = os.getcwd()
         if category.is_dir():
             pbar = tqdm(os.scandir(category.path))
+            os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
             for img_files in pbar:
                 if img_files.is_file():
                     extension = os.path.splitext(img_files.path)[1][1:]
@@ -1090,7 +1091,6 @@ def resize_img_and_save_to_folder_with_category(
                                 # im_resize = misc.imresize(image, (new_size[0], new_size[1]))
                                 im_resize = cv2.resize(np.float32(source_img), (new_size[1], new_size[0]))
                             filename_no_extension, extension = os.path.splitext(img_files.name)
-                            os.makedirs(os.path.join(save_path, category.name), exist_ok=True)
                             os.chdir(os.path.join(save_path, category.name))
                             # misc.imsave(filename_no_extension+'.png', im_resize)
                             if is_save_img:
