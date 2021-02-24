@@ -554,6 +554,32 @@ def __dataset_padding(src_mat, ori_size, out_size=[[128, 128]], dtype=np.float32
     return out_mat
 
 
+def padding_to_fix_sized_and_save_imgs(source_path, save_path, padding_height, padding_width,
+                                                     source_extension='png'):
+    """
+    padding zeros to images data to get fix sized images and save them. But if the source images's size is larger than
+    the required size, do croping on them
+    :param source_path: source images path: the struct should be source_path/images files
+    :param save_path: the processed images' save path
+    :param padding_height: output image's height
+    :param padding_width: output image's width
+    :param extension: source images' file extension
+    :return: True
+    """
+    if not os.path.exists(source_path):
+        raise FileExistsError('path not found! : %s' % source_path)
+    pbar = tqdm(os.scandir(source_path))
+    for img_files in pbar:
+        extension = os.path.splitext(img_files.path)[1][1:]
+        if extension == source_extension:
+            pbar.set_description("Processing %s" % img_files.name)
+            img_data = cv2.imread(img_files.path, -1)
+            filename_no_extension, _ = os.path.splitext(img_files.name)
+            padding_img = __matrix_padding_force_to_get_fix_sized_matrix(img_data, padding_height, padding_width)
+            cv2.imwrite(os.path.join(save_path, category.name, filename_no_extension+'.png'), padding_img)
+    return True
+
+
 def padding_to_fix_sized_and_save_imgs_with_category(source_path, save_path, padding_height, padding_width,
                                                      source_extension='png'):
     """
